@@ -112,6 +112,7 @@ export function buildTikTokAuthorizeUrl(config: TikTokConfig, state: string) {
   authorizeUrl.searchParams.set("scope", "user.info.basic");
   authorizeUrl.searchParams.set("redirect_uri", config.redirectUri);
   authorizeUrl.searchParams.set("state", state);
+  authorizeUrl.searchParams.set("disable_auto_auth", "1");
 
   return authorizeUrl;
 }
