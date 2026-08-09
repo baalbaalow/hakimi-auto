@@ -75,9 +75,9 @@ export function generateTikTokState() {
 }
 
 export function getTikTokConfig(): TikTokConfig | null {
-  const clientKey = process.env.TIKTOK_CLIENT_KEY;
-  const clientSecret = process.env.TIKTOK_CLIENT_SECRET;
-  const redirectUri = process.env.TIKTOK_REDIRECT_URI;
+  const clientKey = process.env.TIKTOK_CLIENT_KEY?.trim();
+  const clientSecret = process.env.TIKTOK_CLIENT_SECRET?.trim();
+  const redirectUri = process.env.TIKTOK_REDIRECT_URI?.trim();
 
   if (!clientKey || !clientSecret || !redirectUri) {
     return null;

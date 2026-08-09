@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import LoginPageClient from "@/app/login/LoginPageClient";
 import { createClient } from "@/utils/supabase/server";
+import { getSupabaseConfigError } from "@/utils/supabase/config";
 
 type LoginPageProps = {
   searchParams?: Promise<{
@@ -19,14 +20,24 @@ function getInitialMessage(error: string | string[] | undefined) {
 }
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const configError = getSupabaseConfigError();
+  const params = searchParams ? await searchParams : undefined;
+
+  if (configError) {
+    return (
+      <LoginPageClient
+        initialMessage={configError}
+        supabaseConfigError={configError}
+      />
+    );
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getClaims();
 
   if (!error && data?.claims?.sub) {
     redirect("/dashboard");
   }
-
-  const params = searchParams ? await searchParams : undefined;
 
   return <LoginPageClient initialMessage={getInitialMessage(params?.error)} />;
 }
