@@ -1,7 +1,16 @@
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
+import type { TikTokAccountSummary } from "@/lib/tiktok-login";
 
-export function AccountStatus() {
+type AccountStatusProps = {
+  tiktokAccount: TikTokAccountSummary | null;
+};
+
+export function AccountStatus({ tiktokAccount }: AccountStatusProps) {
+  const isConnected = Boolean(tiktokAccount?.tiktok_open_id);
+  const displayName = tiktokAccount?.display_name;
+
   return (
     <Card className="p-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -10,22 +19,24 @@ export function AccountStatus() {
             TikTok account
           </p>
           <h2 className="mt-2 text-xl font-semibold text-[var(--foreground)]">
-            Not connected
+            {isConnected ? "Connected" : "Not connected"}
           </h2>
           <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--muted)]">
-            TikTok connection metadata is ready in the database, but OAuth is intentionally not implemented in this phase.
+            {isConnected
+              ? `OAuth is connected${
+                  displayName ? ` for ${displayName}` : ""
+                }. Publishing remains disabled until the Content Posting API phase.`
+              : "Connect TikTok to authorize this workspace. Publishing remains disabled until the Content Posting API phase."}
           </p>
         </div>
-        <Badge variant="warning">Not connected</Badge>
+        <Badge variant={isConnected ? "success" : "warning"}>
+          {isConnected ? "Connected" : "Not connected"}
+        </Badge>
       </div>
 
-      <button
-        type="button"
-        disabled
-        className="mt-5 inline-flex h-10 items-center justify-center rounded-[var(--radius)] border border-[var(--border)] bg-white/[0.04] px-3 text-sm font-medium text-[var(--muted)] opacity-70"
-      >
-        Connect TikTok
-      </button>
+      <Button href="/api/tiktok/connect" className="mt-5" size="sm">
+        {isConnected ? "Reconnect TikTok" : "Connect TikTok"}
+      </Button>
     </Card>
   );
 }
