@@ -3,17 +3,12 @@ import { AccountStatus } from "@/components/app/AccountStatus";
 import { RecentUploads } from "@/components/app/RecentUploads";
 import { Button } from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
-import type { TikTokAccountSummary } from "@/lib/tiktok-account";
 
 type DashboardOverviewProps = {
   email?: string;
-  tiktokAccount: TikTokAccountSummary | null;
 };
 
-export function DashboardOverview({
-  email,
-  tiktokAccount,
-}: DashboardOverviewProps) {
+export function DashboardOverview({ email }: DashboardOverviewProps) {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -35,7 +30,7 @@ export function DashboardOverview({
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
-        <AccountStatus tiktokAccount={tiktokAccount} />
+        <AccountStatus />
         <Card className="p-5">
           <div className="flex items-center justify-between gap-3">
             <div>

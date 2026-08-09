@@ -6,14 +6,10 @@ import { AmbientGlow } from "@/components/effects/AmbientGlow";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import {
-  createClient,
-  getSupabaseConfigError,
-} from "@/utils/supabase/client";
+import { createClient } from "@/utils/supabase/client";
 
 type LoginPageClientProps = {
   initialMessage?: string | null;
-  supabaseConfigError?: string | null;
 };
 
 const genericAuthError = "We couldn't complete that request. Please try again.";
@@ -73,29 +69,11 @@ function getAuthErrorMessage(error: AuthErrorDetails, mode: "sign-in" | "sign-up
     return "Signups are not enabled for this project.";
   }
 
-  if (
-    normalized.includes("invalid api key") ||
-    normalized.includes("project not found") ||
-    normalized.includes("failed to fetch")
-  ) {
-    return "Supabase authentication is not configured correctly for this deployment.";
-  }
-
   return genericAuthError;
 }
 
-function getAppOrigin() {
-  const configuredAppUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  const currentOrigin = window.location.origin;
-  const isLocalOrigin =
-    currentOrigin.startsWith("http://localhost") ||
-    currentOrigin.startsWith("http://127.0.0.1");
-
-  return isLocalOrigin ? currentOrigin : configuredAppUrl || currentOrigin;
-}
-
 function getAuthCallbackUrl() {
-  return new URL("/auth/callback", getAppOrigin()).toString();
+  return new URL("/auth/callback", window.location.origin).toString();
 }
 
 function isSuccessMessage(message: string) {
@@ -104,30 +82,19 @@ function isSuccessMessage(message: string) {
 
 export default function LoginPageClient({
   initialMessage = null,
-  supabaseConfigError = null,
 }: LoginPageClientProps) {
   const router = useRouter();
-  const configError = supabaseConfigError ?? getSupabaseConfigError();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(initialMessage);
-  const supabase = useMemo(
-    () => (configError ? null : createClient()),
-    [configError],
-  );
+  const supabase = useMemo(() => createClient(), []);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
     setMessage(null);
-
-    if (!supabase) {
-      setMessage(configError ?? genericAuthError);
-      setLoading(false);
-      return;
-    }
 
     if (mode === "sign-up") {
       const { data, error } = await supabase.auth.signUp({

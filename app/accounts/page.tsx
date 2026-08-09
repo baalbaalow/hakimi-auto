@@ -1,32 +1,8 @@
 import { AccountsView } from "@/components/app/AccountsView";
 import { requireAuthenticatedUser } from "@/lib/auth";
-import { getTikTokAccountSummary } from "@/lib/tiktok-account";
 
-type AccountsPageProps = {
-  searchParams?: Promise<{
-    connected?: string | string[];
-  }>;
-};
+export default async function AccountsPage() {
+  await requireAuthenticatedUser();
 
-function normalizeConnectionStatus(status: string | string[] | undefined) {
-  const value = Array.isArray(status) ? status[0] : status;
-
-  if (value === "success" || value === "error") {
-    return value;
-  }
-
-  return null;
-}
-
-export default async function AccountsPage({ searchParams }: AccountsPageProps) {
-  const user = await requireAuthenticatedUser();
-  const params = searchParams ? await searchParams : undefined;
-  const tiktokAccount = await getTikTokAccountSummary(user.id);
-
-  return (
-    <AccountsView
-      connectionStatus={normalizeConnectionStatus(params?.connected)}
-      tiktokAccount={tiktokAccount}
-    />
-  );
+  return <AccountsView />;
 }

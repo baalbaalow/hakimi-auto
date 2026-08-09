@@ -24,10 +24,6 @@ Create `.env.local` for local development and configure the same variables in Ve
 ```text
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
-NEXT_PUBLIC_APP_URL=https://hakimi-auto.vercel.app
-TIKTOK_CLIENT_KEY=your-tiktok-client-key
-TIKTOK_CLIENT_SECRET=your-tiktok-client-secret
-TIKTOK_REDIRECT_URI=https://hakimi-auto.vercel.app/api/tiktok/callback
 ```
 
 Do not commit real environment variable values. `.env.local.example` contains safe placeholders only.
@@ -39,13 +35,13 @@ In the Supabase Dashboard, open Authentication > URL Configuration.
 For production, set:
 
 ```text
-Site URL: https://hakimi-auto.vercel.app
+Site URL: https://your-production-domain
 ```
 
 Add the auth callback URL to the redirect allow list:
 
 ```text
-https://hakimi-auto.vercel.app/auth/callback
+https://your-production-domain/auth/callback
 ```
 
 For Vercel preview deployments, add either the exact preview callback URL you are testing or a safe wildcard pattern for your Vercel preview domain:
@@ -62,16 +58,6 @@ http://localhost:3000/auth/callback
 ```
 
 The signup flow builds `emailRedirectTo` from the current app origin, so production confirmation emails will return to `/auth/callback` on the deployed domain once Supabase allows that URL.
-
-## TikTok Login Kit Configuration
-
-In TikTok for Developers, configure the Login Kit redirect URI exactly as:
-
-```text
-https://hakimi-auto.vercel.app/api/tiktok/callback
-```
-
-The app uses TikTok's OAuth v2 authorize endpoint with `client_key`, `response_type=code`, `scope=user.info.basic`, `redirect_uri`, and `state`. The client secret is used only in the server-side callback route.
 
 ## Vercel Deployment
 

@@ -1,9 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
 import { type NextRequest, NextResponse } from 'next/server'
-import {
-  getSupabaseConfigError,
-  getSupabasePublicConfig,
-} from "@/utils/supabase/config"
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({
@@ -12,14 +8,9 @@ export async function updateSession(request: NextRequest) {
     },
   })
 
-  if (getSupabaseConfigError()) {
-    return response
-  }
-
-  const config = getSupabasePublicConfig()
   const supabase = createServerClient(
-    config.url,
-    config.publishableKey,
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
       cookies: {
         getAll() {
