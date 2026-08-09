@@ -1,0 +1,158 @@
+@import "tailwindcss";
+
+:root {
+  --background: #050712;
+  --surface: #0b1020;
+  --surface-secondary: #11172a;
+  --surface-raised: #151c31;
+  --foreground: #f8fbff;
+  --muted: #9aa8c7;
+  --muted-strong: #cbd5e8;
+  --border: rgba(190, 207, 255, 0.14);
+  --border-strong: rgba(190, 207, 255, 0.24);
+  --primary: #7c5cff;
+  --primary-hover: #9277ff;
+  --primary-foreground: #ffffff;
+  --accent: #22d3ee;
+  --success: #34d399;
+  --danger: #fb7185;
+  --warning: #fbbf24;
+  --ring: rgba(124, 92, 255, 0.65);
+  --radius: 8px;
+  --radius-sm: 6px;
+  --radius-lg: 12px;
+  --app-background: #080b14;
+  --app-surface: #0f1524;
+  --app-surface-secondary: #141b2c;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  background: var(--background);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  overflow-x: hidden;
+  color-scheme: dark;
+  background:
+    radial-gradient(circle at 20% -10%, rgba(124, 92, 255, 0.2), transparent 32rem),
+    radial-gradient(circle at 85% 5%, rgba(34, 211, 238, 0.12), transparent 28rem),
+    var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), Arial, Helvetica, sans-serif;
+  text-rendering: geometricPrecision;
+}
+
+::selection {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+a {
+  text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button:disabled,
+input:disabled,
+textarea:disabled,
+select:disabled {
+  cursor: not-allowed;
+}
+
+img,
+svg {
+  max-width: 100%;
+}
+
+.ha-container {
+  width: min(100% - 32px, 1180px);
+  margin-inline: auto;
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+
+.hero-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.055) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(circle at 50% 18%, black 0%, transparent 72%);
+}
+
+.ambient-drift {
+  animation: ambient-drift 18s ease-in-out infinite alternate;
+}
+
+.preview-float {
+  animation: preview-float 8s ease-in-out infinite;
+}
+
+.surface-noise {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+@keyframes ambient-drift {
+  from {
+    transform: translate3d(-2%, -1%, 0) scale(1);
+  }
+
+  to {
+    transform: translate3d(3%, 2%, 0) scale(1.04);
+  }
+}
+
+@keyframes preview-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .ha-container {
+    width: min(100% - 24px, 1180px);
+  }
+}
