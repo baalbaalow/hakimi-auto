@@ -28,13 +28,13 @@ type NativeButtonProps = SharedButtonProps &
 export type ButtonProps = LinkButtonProps | NativeButtonProps;
 
 const baseStyles =
-  "focus-ring inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius)] font-medium transition duration-200";
+  "focus-ring inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius)] font-medium transition duration-200 disabled:pointer-events-none disabled:opacity-55";
 
 const variants = {
   primary:
-    "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-[0_12px_30px_-18px_rgba(124,92,255,0.9)] hover:bg-[var(--primary-hover)]",
+    "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-[0_14px_32px_-20px_rgba(16,185,129,0.95)] hover:bg-[var(--primary-hover)]",
   secondary:
-    "border border-[var(--border)] bg-white/[0.06] text-[var(--foreground)] hover:border-[var(--border-strong)] hover:bg-white/[0.09]",
+    "border border-[var(--border)] bg-white/[0.055] text-[var(--foreground)] hover:border-[var(--border-strong)] hover:bg-white/[0.09]",
   ghost:
     "text-[var(--muted-strong)] hover:bg-white/[0.06] hover:text-[var(--foreground)]",
   danger:

@@ -2,7 +2,7 @@ const steps = [
   {
     number: "01",
     title: "Connect",
-    description: "Link the creator account once TikTok OAuth is implemented.",
+    description: "Authorize TikTok and keep the account state visible.",
   },
   {
     number: "02",
@@ -11,13 +11,13 @@ const steps = [
   },
   {
     number: "03",
-    title: "Automate",
-    description: "Hand repetitive work to the future automation layer.",
+    title: "Review",
+    description: "Check draft readiness before publishing is available.",
   },
   {
     number: "04",
     title: "Publish",
-    description: "Track draft, queued, processing, published, or failed states.",
+    description: "Track queued, processing, published, or failed states.",
   },
 ];
 
@@ -27,11 +27,11 @@ export function Workflow() {
       <div className="ha-container">
         <div className="grid gap-10 lg:grid-cols-[0.7fr_1.3fr] lg:items-start">
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.22em] text-cyan-200">
+            <p className="text-sm font-medium uppercase tracking-[0.18em] text-emerald-200">
               How it works
             </p>
             <h2 className="mt-4 text-3xl font-semibold tracking-normal text-[var(--foreground)] sm:text-4xl">
-              A simple publishing flow.
+              A predictable publishing workflow.
             </h2>
           </div>
 
@@ -39,9 +39,9 @@ export function Workflow() {
             {steps.map((step) => (
               <article
                 key={step.number}
-                className="rounded-[var(--radius)] border border-white/[0.1] bg-white/[0.045] p-5"
+                className="rounded-[var(--radius)] border border-white/[0.1] bg-white/[0.04] p-5"
               >
-                <span className="text-xs font-semibold tracking-[0.2em] text-[var(--accent)]">
+                <span className="text-xs font-semibold tracking-[0.18em] text-amber-200">
                   {step.number}
                 </span>
                 <h3 className="mt-4 text-lg font-semibold text-[var(--foreground)]">

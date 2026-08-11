@@ -13,8 +13,17 @@ export function AppShell({ children }: AppShellProps) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[var(--app-background)] text-[var(--foreground)]">
-      <div className="fixed inset-y-0 left-0 z-40 hidden w-64 lg:block">
+    <div className="relative min-h-screen overflow-hidden bg-[var(--app-background)] text-[var(--foreground)]">
+      <div
+        aria-hidden="true"
+        className="surface-noise pointer-events-none fixed inset-0 opacity-45"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-x-0 top-0 h-64 bg-[linear-gradient(135deg,rgba(16,185,129,0.12),transparent_36%),linear-gradient(225deg,rgba(245,158,11,0.08),transparent_34%)]"
+      />
+
+      <div className="fixed inset-y-0 left-0 z-40 hidden w-72 lg:block">
         <AppSidebar />
       </div>
 
@@ -26,7 +35,7 @@ export function AppShell({ children }: AppShellProps) {
             className="absolute inset-0 bg-black/60"
             onClick={() => setOpen(false)}
           />
-          <div className="relative h-full w-[min(18rem,calc(100vw-3rem))] shadow-2xl">
+          <div className="relative h-full w-[min(19rem,calc(100vw-2rem))] shadow-2xl">
             <AppSidebar onNavigate={() => setOpen(false)} />
             <button
               type="button"
@@ -40,9 +49,9 @@ export function AppShell({ children }: AppShellProps) {
         </div>
       ) : null}
 
-      <div className="lg:pl-64">
+      <div className="relative z-10 lg:pl-72">
         <AppHeader onOpenMenu={() => setOpen(true)} />
-        <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <main className="mx-auto w-full max-w-[88rem] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           {children}
         </main>
       </div>

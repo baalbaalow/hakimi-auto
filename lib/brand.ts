@@ -13,7 +13,7 @@ export const homeCopy = {
   eyebrow: "TikTok publishing, simplified",
   headline: "Publish smarter. Automate the rest.",
   description:
-    "Connect your TikTok account, prepare your content, and manage your publishing workflow from one simple workspace.",
+    "A professional workspace for connecting TikTok, preparing video drafts, and keeping publishing operations visible as automation comes online.",
   primaryCta: "Get Started",
   secondaryCta: "See how it works",
 };

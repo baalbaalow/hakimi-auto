@@ -27,9 +27,11 @@ export function SignOutButton({ compact = false }: SignOutButtonProps) {
       type="button"
       onClick={handleSignOut}
       disabled={loading}
-      className="focus-ring flex w-full items-center gap-2 rounded-[var(--radius)] px-3 py-2 text-sm font-medium text-[var(--muted-strong)] transition hover:bg-white/[0.06] hover:text-[var(--foreground)] disabled:opacity-60"
+      className="focus-ring flex w-full items-center gap-3 rounded-[var(--radius)] border border-transparent px-3 py-2.5 text-sm font-medium text-[var(--muted-strong)] transition hover:border-white/[0.08] hover:bg-white/[0.045] hover:text-[var(--foreground)] disabled:opacity-60"
     >
-      <LogOut size={16} aria-hidden="true" />
+      <span className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] bg-white/[0.04] text-[var(--muted)]">
+        <LogOut size={16} aria-hidden="true" />
+      </span>
       {compact ? null : <span>{loading ? "Signing out..." : "Sign out"}</span>}
     </button>
   );

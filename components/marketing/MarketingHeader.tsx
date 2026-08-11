@@ -11,7 +11,7 @@ export function MarketingHeader() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-[rgba(5,7,18,0.78)] backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-[rgba(7,8,6,0.82)] backdrop-blur-xl">
       <div className="ha-container flex h-16 items-center justify-between gap-4">
         <BrandLogo priority />
 

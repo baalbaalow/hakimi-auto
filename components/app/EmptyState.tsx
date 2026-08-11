@@ -14,8 +14,8 @@ export function EmptyState({
   children,
 }: EmptyStateProps) {
   return (
-    <div className="rounded-[var(--radius)] border border-dashed border-white/[0.16] bg-white/[0.03] p-8 text-center">
-      <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-[var(--radius)] border border-white/[0.1] bg-white/[0.05] text-[var(--muted-strong)]">
+    <div className="rounded-[var(--radius)] border border-dashed border-white/[0.14] bg-white/[0.025] p-8 text-center">
+      <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-[var(--radius)] border border-white/[0.1] bg-white/[0.055] text-emerald-200">
         <Icon size={20} aria-hidden="true" />
       </div>
       <h3 className="mt-4 text-base font-semibold text-[var(--foreground)]">
