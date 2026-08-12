@@ -1,9 +1,9 @@
 export const brand = {
   name: "Hakimi Auto",
-  domain: "hakimiauto.com",
-  appDomain: "app.hakimiauto.com",
+  domain: "hakimi-auto.vercel.app",
+  appDomain: "hakimi-auto.vercel.app",
   tagline: "TikTok publishing, simplified.",
-  contactEmail: "auto@hakimiauto.com",
+  contactEmail: "support@hakimiauto.com",
   logoPath: "/brand/logo.svg",
   markPath: "/brand/logo-mark.svg",
   copyright: "Hakimi Auto",
