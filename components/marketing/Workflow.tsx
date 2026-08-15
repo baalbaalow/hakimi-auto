@@ -7,7 +7,7 @@ const steps = [
   {
     number: "02",
     title: "Upload",
-    description: "Add a video, title, caption, and target account.",
+    description: "Add a video, title, and caption to save a private draft.",
   },
   {
     number: "03",
@@ -16,8 +16,8 @@ const steps = [
   },
   {
     number: "04",
-    title: "Publish",
-    description: "Track queued, processing, published, or failed states.",
+    title: "Publish later",
+    description: "Content Posting API support will add real publishing states.",
   },
 ];
 

@@ -1,7 +1,14 @@
-import { AlertCircle, CheckCircle2, KeyRound, Link2, RefreshCw } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  KeyRound,
+  Link2,
+  RefreshCw,
+} from "lucide-react";
+import { DisconnectTikTokForm } from "@/components/app/DisconnectTikTokForm";
 import { AppPageHeader } from "@/components/app/AppPageHeader";
+import { TikTokConnectLink } from "@/components/app/TikTokConnectLink";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import type { TikTokAccountSummary } from "@/lib/tiktok-login";
 
@@ -16,6 +23,7 @@ export function AccountsView({
 }: AccountsViewProps) {
   const isConnected = Boolean(tiktokAccount?.tiktok_open_id);
   const displayName = tiktokAccount?.display_name;
+  const avatarUrl = tiktokAccount?.avatar_url;
 
   return (
     <div className="space-y-6">
@@ -51,9 +59,19 @@ export function AccountsView({
         <Card className="p-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--radius)] border border-white/[0.1] bg-white/[0.045] text-emerald-200">
-                <Link2 size={20} aria-hidden="true" />
-              </div>
+              {avatarUrl ? (
+                <div
+                  aria-hidden="true"
+                  className="h-12 w-12 shrink-0 rounded-[var(--radius)] border border-white/[0.1] bg-cover bg-center"
+                  style={{
+                    backgroundImage: `url("${escapeCssUrl(avatarUrl)}")`,
+                  }}
+                />
+              ) : (
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--radius)] border border-white/[0.1] bg-white/[0.045] text-emerald-200">
+                  <Link2 size={20} aria-hidden="true" />
+                </div>
+              )}
               <div>
                 <h2 className="text-xl font-semibold text-[var(--foreground)]">
                   TikTok
@@ -63,7 +81,7 @@ export function AccountsView({
                     ? `Connected${
                         displayName ? ` as ${displayName}` : ""
                       }. Token details are stored securely and are not shown here.`
-                    : "Not connected. Connect TikTok to authorize this workspace. Publishing is not enabled yet."}
+                    : "Not connected. Connect TikTok to authorize this workspace. Publishing is not enabled yet. To connect a different TikTok account, switch accounts on TikTok when the TikTok authorization page opens."}
                 </p>
               </div>
             </div>
@@ -75,8 +93,8 @@ export function AccountsView({
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
             {[
               ["Provider", "TikTok"],
+              ["Account", displayName || (isConnected ? "Connected" : "Not connected")],
               ["Authorization", isConnected ? "Authorized" : "Required"],
-              ["Publishing", "Disabled"],
             ].map(([label, value]) => (
               <div
                 key={label}
@@ -92,9 +110,15 @@ export function AccountsView({
             ))}
           </div>
 
-          <Button href="/api/tiktok/connect" className="mt-6" size="sm">
-            {isConnected ? "Reconnect TikTok" : "Connect TikTok"}
-          </Button>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-start">
+            <TikTokConnectLink
+              className="w-full sm:w-auto"
+              variant={isConnected ? "secondary" : "primary"}
+            >
+              {isConnected ? "Reconnect TikTok" : "Connect TikTok"}
+            </TikTokConnectLink>
+            {isConnected ? <DisconnectTikTokForm /> : null}
+          </div>
         </Card>
 
         <Card className="p-5">
@@ -107,7 +131,7 @@ export function AccountsView({
                 Connection health
               </h2>
               <p className="mt-1 text-sm text-[var(--muted)]">
-                OAuth status and refresh readiness
+                Stored OAuth status
               </p>
             </div>
           </div>
@@ -115,7 +139,7 @@ export function AccountsView({
           <div className="mt-5 space-y-3">
             {[
               ["Account token", isConnected ? "Stored" : "Waiting"],
-              ["Refresh flow", isConnected ? "Available" : "Waiting"],
+              ["Refresh token", isConnected ? "Stored" : "Waiting"],
               ["Posting API", "Not enabled"],
             ].map(([label, value]) => (
               <div
@@ -138,4 +162,8 @@ export function AccountsView({
       </div>
     </div>
   );
+}
+
+function escapeCssUrl(value: string) {
+  return value.replace(/["\\]/g, "\\$&");
 }

@@ -1,6 +1,6 @@
 import { Link2, ShieldCheck } from "lucide-react";
+import { TikTokConnectLink } from "@/components/app/TikTokConnectLink";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import type { TikTokAccountSummary } from "@/lib/tiktok-login";
 
@@ -54,15 +54,21 @@ export function AccountStatus({ tiktokAccount }: AccountStatusProps) {
             Token storage
           </p>
           <p className="mt-1 flex items-center gap-2 text-sm font-medium text-[var(--foreground)]">
-            <ShieldCheck size={14} className="text-emerald-200" aria-hidden="true" />
-            Secure
+            {isConnected ? (
+              <ShieldCheck
+                size={14}
+                className="text-emerald-200"
+                aria-hidden="true"
+              />
+            ) : null}
+            {isConnected ? "Stored securely" : "None stored"}
           </p>
         </div>
       </div>
 
-      <Button href="/api/tiktok/connect" className="mt-5" size="sm">
+      <TikTokConnectLink className="mt-5">
         {isConnected ? "Reconnect TikTok" : "Connect TikTok"}
-      </Button>
+      </TikTokConnectLink>
     </Card>
   );
 }

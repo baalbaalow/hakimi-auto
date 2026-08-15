@@ -13,6 +13,8 @@ export const config = {
     "/accounts/:path*",
     "/settings/:path*",
     "/login",
+    "/forgot-password",
+    "/reset-password",
     "/auth/:path*",
   ],
 };

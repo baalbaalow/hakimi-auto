@@ -24,7 +24,7 @@ export function Hero() {
           {homeCopy.description}
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <Button href="/login">
+          <Button href="/login?mode=signup">
             {homeCopy.primaryCta}
             <ArrowRight size={16} aria-hidden="true" />
           </Button>

@@ -48,7 +48,7 @@ export function ProductPreview() {
                   Workspace overview
                 </h2>
               </div>
-              <Button href="/login" size="sm">
+              <Button href="/login?mode=signup" size="sm">
                 Get Started
               </Button>
             </div>
@@ -81,18 +81,14 @@ export function ProductPreview() {
                       TikTok account
                     </p>
                     <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-                      Connect your creator account when the TikTok integration is enabled.
+                      Connect your creator account from Accounts after signing in.
                     </p>
                   </div>
                   <Badge variant="warning">Not connected</Badge>
                 </div>
-                <button
-                  type="button"
-                  disabled
-                  className="mt-5 inline-flex h-10 items-center justify-center rounded-[var(--radius)] border border-[var(--border)] bg-white/[0.035] px-3 text-sm text-[var(--muted)] opacity-70"
-                >
-                  Connect TikTok
-                </button>
+                <div className="mt-5 rounded-[var(--radius)] border border-white/[0.08] bg-white/[0.035] px-3 py-2 text-sm text-[var(--muted)]">
+                  Account action: Connect TikTok in the app.
+                </div>
               </section>
 
               <section className="rounded-[var(--radius)] border border-white/[0.08] bg-white/[0.05] p-4">

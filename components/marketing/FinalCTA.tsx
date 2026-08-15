@@ -14,7 +14,7 @@ export function FinalCTA() {
               Start with the workspace today. TikTok publishing and automation integrations will be added in later phases.
             </p>
             <div className="mt-7">
-              <Button href="/login">
+              <Button href="/login?mode=signup">
                 Get Started
                 <ArrowRight size={16} aria-hidden="true" />
               </Button>

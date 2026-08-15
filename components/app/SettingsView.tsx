@@ -3,8 +3,6 @@ import { Bell, Palette, ShieldCheck, UserRoundCog } from "lucide-react";
 import { AppPageHeader } from "@/components/app/AppPageHeader";
 import { Badge } from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
-import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
 
 type SettingsViewProps = {
   user: User;
@@ -39,14 +37,8 @@ export function SettingsView({ user }: SettingsViewProps) {
           </div>
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
-            <label className="block text-sm font-medium text-[var(--muted-strong)]">
-              Email
-              <Input className="mt-2" value={user.email ?? ""} readOnly />
-            </label>
-            <label className="block text-sm font-medium text-[var(--muted-strong)]">
-              User ID
-              <Input className="mt-2" value={user.id} readOnly />
-            </label>
+            <InfoField label="Email" value={user.email ?? "Unknown"} />
+            <InfoField label="User ID" value={user.id} />
           </div>
         </Card>
 
@@ -103,12 +95,10 @@ export function SettingsView({ user }: SettingsViewProps) {
               </p>
             </div>
           </div>
-          <label className="mt-5 block text-sm font-medium text-[var(--muted-strong)]">
-            Theme
-            <Select className="mt-2" defaultValue="dark" disabled>
-              <option value="dark">Dark</option>
-            </Select>
-          </label>
+          <p className="mt-5 text-sm leading-6 text-[var(--muted)]">
+            The workspace currently uses the default dark interface. Theme
+            editing will be added only when it can be saved for your account.
+          </p>
         </Card>
 
         <Card className="p-5">
@@ -126,25 +116,25 @@ export function SettingsView({ user }: SettingsViewProps) {
             </div>
           </div>
 
-          <div className="mt-5 space-y-3">
-            {["Draft ready", "Publishing failed", "Account disconnected"].map(
-              (item) => (
-                <label
-                  key={item}
-                  className="flex items-center justify-between gap-3 rounded-[var(--radius)] border border-white/[0.07] bg-white/[0.025] px-3 py-2.5 text-sm text-[var(--muted-strong)]"
-                >
-                  {item}
-                  <input
-                    type="checkbox"
-                    disabled
-                    className="h-4 w-4 accent-[var(--primary)]"
-                  />
-                </label>
-              ),
-            )}
-          </div>
+          <p className="mt-5 text-sm leading-6 text-[var(--muted)]">
+            Notification preferences are not enabled yet, so there are no
+            controls to configure.
+          </p>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function InfoField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[var(--radius)] border border-white/[0.07] bg-white/[0.025] px-3 py-3">
+      <p className="text-xs uppercase tracking-[0.14em] text-[var(--muted)]">
+        {label}
+      </p>
+      <p className="mt-1 break-all text-sm font-medium text-[var(--foreground)]">
+        {value}
+      </p>
     </div>
   );
 }

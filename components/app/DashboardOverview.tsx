@@ -2,21 +2,40 @@ import { Activity, Clock3, Library, UploadCloud, Video } from "lucide-react";
 import { AccountStatus } from "@/components/app/AccountStatus";
 import { AppPageHeader } from "@/components/app/AppPageHeader";
 import { MetricCard } from "@/components/app/MetricCard";
-import { RecentUploads } from "@/components/app/RecentUploads";
+import {
+  RecentUploads,
+  type RecentUpload,
+} from "@/components/app/RecentUploads";
 import { Button } from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import type { TikTokAccountSummary } from "@/lib/tiktok-login";
 
+type UploadCounts = {
+  all: number;
+  draft: number;
+  queued: number;
+  processing: number;
+  published: number;
+  failed: number;
+};
+
 type DashboardOverviewProps = {
   email?: string;
   tiktokAccount: TikTokAccountSummary | null;
+  uploadCounts: UploadCounts;
+  recentUploads: RecentUpload[];
+  uploadsLoadError: string | null;
 };
 
 export function DashboardOverview({
   email,
   tiktokAccount,
+  uploadCounts,
+  recentUploads,
+  uploadsLoadError,
 }: DashboardOverviewProps) {
   const isConnected = Boolean(tiktokAccount?.tiktok_open_id);
+  const activeUploadCount = uploadCounts.queued + uploadCounts.processing;
 
   return (
     <div className="space-y-6">
@@ -94,21 +113,22 @@ export function DashboardOverview({
         />
         <MetricCard
           label="Draft uploads"
-          value="0"
-          detail="Draft records will appear after storage is connected."
+          value={String(uploadCounts.draft)}
+          detail="Private drafts saved in your library."
           icon={Video}
         />
         <MetricCard
-          label="Publishing jobs"
-          value="0"
-          detail="No queued, processing, or published jobs yet."
+          label="Saved uploads"
+          value={String(uploadCounts.all)}
+          detail="Total real upload records for this workspace."
           icon={UploadCloud}
         />
         <MetricCard
-          label="System activity"
-          value="Idle"
-          detail="No active background work is currently displayed."
+          label="Publishing"
+          value="Not enabled"
+          detail="Content Posting API has not been implemented yet."
           icon={Clock3}
+          tone="amber"
         />
       </div>
 
@@ -118,10 +138,14 @@ export function DashboardOverview({
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-medium text-[var(--muted-strong)]">
-                Current activity
+                Library activity
               </p>
               <h2 className="mt-2 text-2xl font-semibold text-[var(--foreground)]">
-                No active jobs
+                {activeUploadCount > 0
+                  ? `${activeUploadCount} active upload${activeUploadCount === 1 ? "" : "s"}`
+                  : uploadCounts.draft > 0
+                    ? `${uploadCounts.draft} draft${uploadCounts.draft === 1 ? "" : "s"} saved`
+                    : "No active uploads"}
               </h2>
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-[var(--radius)] border border-white/[0.1] bg-white/[0.045] text-amber-200">
@@ -129,30 +153,35 @@ export function DashboardOverview({
             </div>
           </div>
           <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
-            Publishing activity will appear after uploads and TikTok publishing are connected.
+            Counts below come from your saved upload records. Publishing remains
+            unavailable until the Content Posting API phase.
           </p>
           <div className="mt-5 space-y-3">
-            {["Upload selected", "Draft validated", "Publishing queued"].map(
-              (item) => (
+            {[
+              ["Drafts", String(uploadCounts.draft)],
+              ["Queued", String(uploadCounts.queued)],
+              ["Processing", String(uploadCounts.processing)],
+              ["Failed", String(uploadCounts.failed)],
+              ["Published", String(uploadCounts.published)],
+            ].map(([label, value]) => (
                 <div
-                  key={item}
+                  key={label}
                   className="flex items-center gap-3 rounded-[var(--radius)] border border-white/[0.07] bg-white/[0.025] px-3 py-2.5"
                 >
                   <span className="h-2 w-2 rounded-full bg-[var(--muted)]" />
                   <span className="text-sm text-[var(--muted-strong)]">
-                    {item}
+                    {label}
                   </span>
                   <span className="ml-auto text-xs text-[var(--muted)]">
-                    Waiting
+                    {value}
                   </span>
                 </div>
-              ),
-            )}
+              ))}
           </div>
         </Card>
       </div>
 
-      <RecentUploads />
+      <RecentUploads uploads={recentUploads} loadError={uploadsLoadError} />
     </div>
   );
 }

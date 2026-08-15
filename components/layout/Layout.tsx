@@ -24,7 +24,11 @@ export default function Layout({ children }: LayoutProps) {
     return <>{children}</>;
   }
 
-  if (pathname.startsWith("/login")) {
+  if (
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/forgot-password") ||
+    pathname.startsWith("/reset-password")
+  ) {
     return <div className="min-h-screen bg-[var(--background)]">{children}</div>;
   }
 

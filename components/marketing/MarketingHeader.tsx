@@ -31,7 +31,7 @@ export function MarketingHeader() {
           <Button href="/login" variant="ghost">
             Login
           </Button>
-          <Button href="/login">
+          <Button href="/login?mode=signup">
             Get Started
           </Button>
         </div>
@@ -64,7 +64,7 @@ export function MarketingHeader() {
               <Button href="/login" variant="secondary" onClick={() => setOpen(false)}>
                 Login
               </Button>
-              <Button href="/login" onClick={() => setOpen(false)}>
+              <Button href="/login?mode=signup" onClick={() => setOpen(false)}>
                 Get Started
               </Button>
             </div>

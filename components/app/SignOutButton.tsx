@@ -3,6 +3,11 @@
 import { LogOut } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  ACTIVE_UPLOAD_STORAGE_KEY,
+  LAST_ACTIVITY_STORAGE_KEY,
+  LOGOUT_STORAGE_KEY,
+} from "@/lib/inactivity";
 import { createClient } from "@/utils/supabase/client";
 
 type SignOutButtonProps = {
@@ -17,9 +22,11 @@ export function SignOutButton({ compact = false }: SignOutButtonProps) {
   const handleSignOut = async () => {
     setLoading(true);
     await supabase.auth.signOut();
-    router.push("/login");
+    window.localStorage.removeItem(LAST_ACTIVITY_STORAGE_KEY);
+    window.localStorage.removeItem(ACTIVE_UPLOAD_STORAGE_KEY);
+    window.localStorage.setItem(LOGOUT_STORAGE_KEY, String(Date.now()));
+    router.replace("/login");
     router.refresh();
-    setLoading(false);
   };
 
   return (

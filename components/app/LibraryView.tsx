@@ -315,20 +315,26 @@ function UploadRow({
       </div>
 
       <div className="flex justify-start md:justify-end">
-        <Button
-          type="button"
-          variant="danger"
-          size="sm"
-          disabled={!isDraft || deleting}
-          onClick={() => onDelete(upload)}
-        >
-          {deleting ? (
-            <Loader2 size={15} className="animate-spin" aria-hidden="true" />
-          ) : (
-            <Trash2 size={15} aria-hidden="true" />
-          )}
-          Delete
-        </Button>
+        {isDraft ? (
+          <Button
+            type="button"
+            variant="danger"
+            size="sm"
+            disabled={deleting}
+            onClick={() => onDelete(upload)}
+          >
+            {deleting ? (
+              <Loader2 size={15} className="animate-spin" aria-hidden="true" />
+            ) : (
+              <Trash2 size={15} aria-hidden="true" />
+            )}
+            Delete
+          </Button>
+        ) : (
+          <span className="rounded-[var(--radius)] border border-white/[0.07] bg-white/[0.025] px-3 py-2 text-xs text-[var(--muted)]">
+            Drafts only
+          </span>
+        )}
       </div>
     </article>
   );

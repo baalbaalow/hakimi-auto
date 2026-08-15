@@ -1,7 +1,7 @@
 "use client";
 
 import type { DragEvent, FormEvent } from "react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -19,8 +19,13 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
+import {
+  ACTIVE_UPLOAD_GRACE_MS,
+  ACTIVE_UPLOAD_STORAGE_KEY,
+  LAST_ACTIVITY_STORAGE_KEY,
+} from "@/lib/inactivity";
+import type { TikTokAccountSummary } from "@/lib/tiktok-login";
 import { createClient } from "@/utils/supabase/client";
 
 const VIDEO_BUCKET = "videos";
@@ -30,6 +35,7 @@ const ACCEPTED_VIDEO_EXTENSIONS = [".mp4", ".mov"];
 
 type UploadComposerProps = {
   userId: string;
+  tiktokAccount: TikTokAccountSummary | null;
 };
 
 type FieldErrors = {
@@ -50,7 +56,7 @@ type UploadWithProgressOptions = {
   onProgress: (progress: number) => void;
 };
 
-export function UploadComposer({ userId }: UploadComposerProps) {
+export function UploadComposer({ userId, tiktokAccount }: UploadComposerProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
@@ -65,10 +71,9 @@ export function UploadComposer({ userId }: UploadComposerProps) {
   const captionCount = useMemo(() => caption.length, [caption]);
   const isBusy = phase === "uploading" || phase === "saving";
   const selectedFileError = selectedFile ? validateVideoFile(selectedFile) : null;
-  const selectedFileSize = selectedFile
-    ? formatFileSize(selectedFile.size)
-    : null;
+  const selectedFileSize = selectedFile ? formatFileSize(selectedFile.size) : null;
   const progressValue = phase === "saving" ? 100 : uploadProgress;
+  const isTikTokConnected = Boolean(tiktokAccount?.tiktok_open_id);
 
   const preflightItems = useMemo(
     () => [
@@ -99,6 +104,30 @@ export function UploadComposer({ userId }: UploadComposerProps) {
     ],
     [caption, selectedFile, selectedFileError, title],
   );
+
+  useEffect(() => {
+    if (!isBusy) {
+      window.localStorage.removeItem(ACTIVE_UPLOAD_STORAGE_KEY);
+      return;
+    }
+
+    const markActiveUpload = () => {
+      const now = Date.now();
+      window.localStorage.setItem(
+        ACTIVE_UPLOAD_STORAGE_KEY,
+        String(now + ACTIVE_UPLOAD_GRACE_MS),
+      );
+      window.localStorage.setItem(LAST_ACTIVITY_STORAGE_KEY, String(now));
+    };
+
+    markActiveUpload();
+    const intervalId = window.setInterval(markActiveUpload, 30 * 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.localStorage.removeItem(ACTIVE_UPLOAD_STORAGE_KEY);
+    };
+  }, [isBusy]);
 
   const handleFileSelection = (file: File | null) => {
     setSelectedFile(file);
@@ -453,28 +482,34 @@ export function UploadComposer({ userId }: UploadComposerProps) {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-[var(--foreground)]">
-                  Publishing
+                  Draft destination
                 </h2>
                 <p className="mt-1 text-sm text-[var(--muted)]">
-                  Save this video as a private draft.
+                  This save only creates a private library draft.
                 </p>
               </div>
               <Badge variant="warning">Draft</Badge>
             </div>
 
-            <label className="mt-5 block text-sm font-medium text-[var(--muted-strong)]">
-              TikTok account
-              <Select className="mt-2" disabled defaultValue="">
-                <option value="">Publishing disabled for drafts</option>
-              </Select>
-            </label>
-
-            <label className="mt-4 block text-sm font-medium text-[var(--muted-strong)]">
-              Publishing mode
-              <Select className="mt-2" disabled defaultValue="draft">
-                <option value="draft">Draft library</option>
-              </Select>
-            </label>
+            <div className="mt-5 space-y-3">
+              <InfoRow label="Draft destination" value="Private Library" />
+              <InfoRow
+                label="TikTok account"
+                value={
+                  isTikTokConnected
+                    ? tiktokAccount?.display_name
+                      ? `Connected as ${tiktokAccount.display_name}`
+                      : "Connected"
+                    : "Not connected"
+                }
+                tone={isTikTokConnected ? "success" : "warning"}
+              />
+              <InfoRow
+                label="Publishing"
+                value="Not enabled yet"
+                tone="warning"
+              />
+            </div>
 
             {isBusy ? (
               <div className="mt-5 rounded-[var(--radius)] border border-white/[0.08] bg-white/[0.035] p-3">
@@ -516,7 +551,7 @@ export function UploadComposer({ userId }: UploadComposerProps) {
                   ? "Saving draft"
                   : phase === "uploading"
                     ? "Uploading video"
-                    : "Upload / Save Draft"}
+                    : "Save Draft"}
               </Button>
             </div>
           </Card>
@@ -557,6 +592,32 @@ export function UploadComposer({ userId }: UploadComposerProps) {
         </aside>
       </div>
     </form>
+  );
+}
+
+function InfoRow({
+  label,
+  value,
+  tone = "neutral",
+}: {
+  label: string;
+  value: string;
+  tone?: "neutral" | "success" | "warning";
+}) {
+  const toneClass =
+    tone === "success"
+      ? "text-emerald-200"
+      : tone === "warning"
+        ? "text-amber-200"
+        : "text-[var(--foreground)]";
+
+  return (
+    <div className="rounded-[var(--radius)] border border-white/[0.07] bg-white/[0.025] px-3 py-3">
+      <p className="text-xs uppercase tracking-[0.14em] text-[var(--muted)]">
+        {label}
+      </p>
+      <p className={`mt-1 text-sm font-medium ${toneClass}`}>{value}</p>
+    </div>
   );
 }
 

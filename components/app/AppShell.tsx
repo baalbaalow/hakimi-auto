@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { useState } from "react";
 import { AppHeader } from "@/components/app/AppHeader";
 import { AppSidebar } from "@/components/app/AppSidebar";
+import { InactivityLogoutGuard } from "@/components/app/InactivityLogoutGuard";
 
 type AppShellProps = {
   children: React.ReactNode;
@@ -14,6 +15,7 @@ export function AppShell({ children }: AppShellProps) {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[var(--app-background)] text-[var(--foreground)]">
+      <InactivityLogoutGuard />
       <div
         aria-hidden="true"
         className="surface-noise pointer-events-none fixed inset-0 opacity-45"

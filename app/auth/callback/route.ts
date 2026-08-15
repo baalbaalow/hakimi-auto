@@ -24,12 +24,19 @@ function logAuthCallbackError(context: string, error?: AuthErrorDetails) {
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
-  const loginUrl = new URL("/login", request.url);
-  loginUrl.searchParams.set("error", "callback");
+  const next = getSafeNextPath(
+    requestUrl.searchParams.get("next"),
+    requestUrl.origin,
+  );
+  const errorUrl =
+    next === "/reset-password"
+      ? new URL("/forgot-password", request.url)
+      : new URL("/login", request.url);
+  errorUrl.searchParams.set("error", "callback");
 
   if (!code) {
     logAuthCallbackError("callback missing auth code");
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.redirect(errorUrl);
   }
 
   const supabase = await createClient();
@@ -37,8 +44,22 @@ export async function GET(request: Request) {
 
   if (error) {
     logAuthCallbackError("exchangeCodeForSession failed", error);
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.redirect(errorUrl);
   }
 
-  return NextResponse.redirect(new URL("/dashboard", request.url));
+  return NextResponse.redirect(new URL(next, request.url));
+}
+
+function getSafeNextPath(value: string | null, origin: string) {
+  if (!value?.startsWith("/")) {
+    return "/dashboard";
+  }
+
+  const nextUrl = new URL(value, origin);
+
+  if (nextUrl.origin !== origin) {
+    return "/dashboard";
+  }
+
+  return `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`;
 }
