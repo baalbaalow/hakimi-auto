@@ -81,7 +81,7 @@ export function AccountsView({
                     ? `Connected${
                         displayName ? ` as ${displayName}` : ""
                       }. Token details are stored securely and are not shown here.`
-                    : "Not connected. Connect TikTok to authorize this workspace. Publishing is not enabled yet. To connect a different TikTok account, switch accounts on TikTok when the TikTok authorization page opens."}
+                    : "Not connected. Connect TikTok to authorize this workspace. Publishing is not enabled yet. To connect a different TikTok account, switch accounts or sign out on TikTok when the TikTok authorization page opens."}
                 </p>
               </div>
             </div>

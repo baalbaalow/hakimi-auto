@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Eye, EyeOff, LockKeyhole } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AmbientGlow } from "@/components/effects/AmbientGlow";
 import { BrandLogo } from "@/components/brand/BrandLogo";
@@ -27,12 +28,12 @@ export default function ResetPasswordPageClient() {
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getUser().then(({ data, error: userError }) => {
       if (!mounted) {
         return;
       }
 
-      if (!data.session) {
+      if (userError || !data.user) {
         setError(expiredResetLinkMessage);
       }
 
@@ -51,9 +52,12 @@ export default function ResetPasswordPageClient() {
       return;
     }
 
-    const { data: sessionData } = await supabase.auth.getSession();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-    if (!sessionData.session) {
+    if (userError || !user) {
       setError(expiredResetLinkMessage);
       return;
     }
@@ -137,9 +141,17 @@ export default function ResetPasswordPageClient() {
           />
 
           {error ? (
-            <p className="rounded-[var(--radius)] border border-rose-300/20 bg-rose-300/10 px-3 py-2 text-sm text-rose-100">
-              {error}
-            </p>
+            <div className="rounded-[var(--radius)] border border-rose-300/20 bg-rose-300/10 px-3 py-2 text-sm text-rose-100">
+              <p>{error}</p>
+              {error === expiredResetLinkMessage ? (
+                <Link
+                  href="/forgot-password"
+                  className="focus-ring mt-2 inline-flex rounded-[var(--radius-sm)] text-sm font-medium text-rose-50 underline-offset-4 transition hover:underline"
+                >
+                  Request a new reset email
+                </Link>
+              ) : null}
+            </div>
           ) : null}
 
           <Button type="submit" className="w-full" disabled={loading || checkingSession}>

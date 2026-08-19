@@ -15,7 +15,7 @@ type ForgotPasswordPageClientProps = {
 
 function getRecoveryCallbackUrl() {
   return new URL(
-    "/auth/callback?next=/reset-password",
+    "/auth/confirm?next=/reset-password",
     window.location.origin,
   ).toString();
 }
