@@ -74,7 +74,10 @@ export default async function DraftDetailPage({ params }: DraftDetailPageProps) 
       title: upload.title,
       caption: upload.caption,
     },
-    tiktokConnected,
+    {
+      connected: tiktokConnected,
+      canPublishDirect: Boolean(tiktokAccount?.canPublishDirect),
+    },
   );
   const isDraft = upload.status === "draft";
   const displayTitle = upload.title?.trim() || "Untitled draft";

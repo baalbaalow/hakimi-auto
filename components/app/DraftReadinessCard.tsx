@@ -9,9 +9,10 @@ type DraftReadinessCardProps = {
 };
 
 export function DraftReadinessCard({ readiness }: DraftReadinessCardProps) {
-  const needsTikTok = readiness.checks.some(
-    (check) => check.key === "tiktok" && !check.ready,
-  );
+  const tiktokCheck = readiness.checks.find((check) => check.key === "tiktok");
+  const needsTikTok = Boolean(tiktokCheck && !tiktokCheck.ready);
+  const needsTikTokReconnect =
+    tiktokCheck?.message === "Reconnect TikTok to authorize direct publishing.";
 
   return (
     <Card className="p-5 sm:p-6">
@@ -100,20 +101,24 @@ export function DraftReadinessCard({ readiness }: DraftReadinessCardProps) {
         <div className="mt-5 flex flex-col gap-3 rounded-[var(--radius)] border border-amber-300/20 bg-amber-300/[0.07] p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-semibold text-amber-100">
-              TikTok account required
+              {needsTikTokReconnect
+                ? "TikTok publishing permission required"
+                : "TikTok account required"}
             </p>
             <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
-              Connect your account from the Accounts page.
+              {needsTikTokReconnect
+                ? "Reconnect your account to authorize direct publishing."
+                : "Connect your account from the Accounts page."}
             </p>
           </div>
           <Button href="/accounts" variant="secondary" size="sm">
-            Connect TikTok
+            {needsTikTokReconnect ? "Reconnect TikTok" : "Connect TikTok"}
           </Button>
         </div>
       ) : null}
 
       <p className="mt-5 text-xs leading-5 text-[var(--muted)]">
-        Prepared for Content Posting API. Content Posting API is not enabled yet.
+        Authorization readiness only. No Content Posting API request is made here.
       </p>
     </Card>
   );

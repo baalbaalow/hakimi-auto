@@ -54,7 +54,10 @@ export default async function DashboardPage() {
         title: upload.title,
         caption: upload.caption,
       },
-      tiktokConnected,
+      {
+        connected: tiktokConnected,
+        canPublishDirect: Boolean(tiktokAccount?.canPublishDirect),
+      },
     ).ready,
   ).length;
 

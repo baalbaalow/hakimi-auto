@@ -26,9 +26,14 @@ export type DraftReadinessUpload = {
   caption: string | null;
 };
 
+export type TikTokPublishingAuthorization = {
+  connected: boolean;
+  canPublishDirect: boolean;
+};
+
 export function getDraftReadiness(
   upload: DraftReadinessUpload,
-  tiktokConnected: boolean,
+  tiktokAuthorization: TikTokPublishingAuthorization,
 ): DraftReadiness {
   const metadata = validateDraftMetadata({
     title: upload.title,
@@ -72,9 +77,15 @@ export function getDraftReadiness(
     },
     {
       key: "tiktok",
-      label: "TikTok connected",
-      ready: tiktokConnected,
-      ...(!tiktokConnected ? { message: "TikTok account required." } : {}),
+      label: "TikTok publishing permission",
+      ready:
+        tiktokAuthorization.connected &&
+        tiktokAuthorization.canPublishDirect,
+      ...(!tiktokAuthorization.connected
+        ? { message: "TikTok account required." }
+        : !tiktokAuthorization.canPublishDirect
+          ? { message: "Reconnect TikTok to authorize direct publishing." }
+          : {}),
     },
   ];
 

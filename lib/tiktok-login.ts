@@ -8,6 +8,14 @@ const TIKTOK_TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token/";
 const TIKTOK_USER_INFO_URL = "https://open.tiktokapis.com/v2/user/info/";
 const TIKTOK_USER_INFO_FIELDS = "open_id,avatar_url,display_name";
 
+export const TIKTOK_REQUESTED_SCOPES = [
+  "user.info.basic",
+  "video.publish",
+  "video.upload",
+] as const;
+
+type TikTokRequestedScope = (typeof TIKTOK_REQUESTED_SCOPES)[number];
+
 const requiredTikTokEnvNames = [
   "TIKTOK_CLIENT_KEY",
   "TIKTOK_CLIENT_SECRET",
@@ -51,6 +59,7 @@ type TikTokAccountPayload = {
   tiktok_open_id: string | null;
   display_name: string | null;
   avatar_url: string | null;
+  authorized_scopes: string | null;
   access_token: string;
   refresh_token: string;
   access_token_expires_at: string | null;
@@ -81,6 +90,8 @@ export type TikTokAccountSummary = {
   avatar_url: string | null;
   access_token_expires_at: string | null;
   refresh_token_expires_at: string | null;
+  canPublishDirect: boolean;
+  canUploadDraft: boolean;
 };
 
 export function generateTikTokState() {
@@ -109,7 +120,7 @@ export function buildTikTokAuthorizeUrl(config: TikTokConfig, state: string) {
 
   authorizeUrl.searchParams.set("client_key", config.clientKey);
   authorizeUrl.searchParams.set("response_type", "code");
-  authorizeUrl.searchParams.set("scope", "user.info.basic");
+  authorizeUrl.searchParams.set("scope", TIKTOK_REQUESTED_SCOPES.join(","));
   authorizeUrl.searchParams.set("redirect_uri", config.redirectUri);
   authorizeUrl.searchParams.set("state", state);
   authorizeUrl.searchParams.set("disable_auto_auth", "1");
@@ -222,7 +233,7 @@ export async function getTikTokAccountSummary(
   const { data, error } = await supabase
     .from("tiktok_accounts")
     .select(
-      "tiktok_open_id, display_name, avatar_url, access_token_expires_at, refresh_token_expires_at",
+      "tiktok_open_id, display_name, avatar_url, access_token_expires_at, refresh_token_expires_at, authorized_scopes",
     )
     .eq("user_id", userId)
     .order("updated_at", { ascending: false })
@@ -237,7 +248,25 @@ export async function getTikTokAccountSummary(
     return null;
   }
 
-  return data;
+  if (!data) {
+    return null;
+  }
+
+  return {
+    tiktok_open_id: data.tiktok_open_id,
+    display_name: data.display_name,
+    avatar_url: data.avatar_url,
+    access_token_expires_at: data.access_token_expires_at,
+    refresh_token_expires_at: data.refresh_token_expires_at,
+    canPublishDirect: hasAuthorizedTikTokScope(
+      data.authorized_scopes,
+      "video.publish",
+    ),
+    canUploadDraft: hasAuthorizedTikTokScope(
+      data.authorized_scopes,
+      "video.upload",
+    ),
+  };
 }
 
 export async function saveTikTokAccount(
@@ -300,11 +329,42 @@ export function buildTikTokAccountPayload(
     tiktok_open_id: userInfo?.open_id ?? token.open_id,
     display_name: userInfo?.display_name ?? null,
     avatar_url: userInfo?.avatar_url ?? null,
+    authorized_scopes: normalizeTikTokAuthorizedScopes(token.scope),
     access_token: token.access_token,
     refresh_token: token.refresh_token,
     access_token_expires_at: secondsFromNowToIso(token.expires_in),
     refresh_token_expires_at: secondsFromNowToIso(token.refresh_expires_in),
   };
+}
+
+function normalizeTikTokAuthorizedScopes(value: unknown) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const scopes = Array.from(
+    new Set(
+      value
+        .split(",")
+        .map((scope) => scope.trim())
+        .filter(Boolean),
+    ),
+  );
+
+  return scopes.length > 0 ? scopes.join(",") : null;
+}
+
+function hasAuthorizedTikTokScope(
+  authorizedScopes: string | null,
+  requiredScope: TikTokRequestedScope,
+) {
+  if (!authorizedScopes) {
+    return false;
+  }
+
+  return authorizedScopes
+    .split(",")
+    .some((scope) => scope.trim() === requiredScope);
 }
 
 function secondsFromNowToIso(seconds: number) {

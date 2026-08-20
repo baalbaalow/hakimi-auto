@@ -24,6 +24,18 @@ export function AccountsView({
   const isConnected = Boolean(tiktokAccount?.tiktok_open_id);
   const displayName = tiktokAccount?.display_name;
   const avatarUrl = tiktokAccount?.avatar_url;
+  const canPublishDirect = Boolean(tiktokAccount?.canPublishDirect);
+  const canUploadDraft = Boolean(tiktokAccount?.canUploadDraft);
+  const publishingPermissionsReady =
+    isConnected && canPublishDirect && canUploadDraft;
+  const needsPublishingReconnect =
+    isConnected && !publishingPermissionsReady;
+  const reconnectHeading = canPublishDirect
+    ? "Reconnect TikTok to authorize video upload permissions."
+    : "Reconnect TikTok to authorize video publishing permissions.";
+  const reconnectExplanation = canPublishDirect
+    ? "Reconnect TikTok to grant Hakimi Auto permission to upload videos."
+    : "Reconnect TikTok to grant Hakimi Auto permission to publish videos.";
 
   return (
     <div className="space-y-6">
@@ -78,10 +90,14 @@ export function AccountsView({
                 </h2>
                 <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--muted)]">
                   {isConnected
-                    ? `Connected${
-                        displayName ? ` as ${displayName}` : ""
-                      }. Token details are stored securely and are not shown here.`
-                    : "Not connected. Connect TikTok to authorize this workspace. Publishing is not enabled yet. To connect a different TikTok account, switch accounts or sign out on TikTok when the TikTok authorization page opens."}
+                    ? publishingPermissionsReady
+                      ? `Connected${
+                          displayName ? ` as ${displayName}` : ""
+                        }. Publishing permissions are ready.`
+                      : `Connected${
+                          displayName ? ` as ${displayName}` : ""
+                        }, but publishing permissions have not been authorized.`
+                    : "Not connected. Connect TikTok to authorize Login Kit and content posting permissions for this workspace."}
                 </p>
               </div>
             </div>
@@ -92,9 +108,15 @@ export function AccountsView({
 
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
             {[
-              ["Provider", "TikTok"],
-              ["Account", displayName || (isConnected ? "Connected" : "Not connected")],
-              ["Authorization", isConnected ? "Authorized" : "Required"],
+              ["Login Kit", isConnected ? "Authorized" : "Required"],
+              [
+                "Direct Post",
+                getPermissionStatus(canPublishDirect, isConnected),
+              ],
+              [
+                "Upload to TikTok",
+                getPermissionStatus(canUploadDraft, isConnected),
+              ],
             ].map(([label, value]) => (
               <div
                 key={label}
@@ -110,13 +132,38 @@ export function AccountsView({
             ))}
           </div>
 
+          {needsPublishingReconnect ? (
+            <div className="mt-5 rounded-[var(--radius)] border border-amber-300/20 bg-amber-300/[0.08] p-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle
+                  size={18}
+                  className="mt-0.5 shrink-0 text-amber-200"
+                  aria-hidden="true"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-amber-100">
+                    {reconnectHeading}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
+                    {reconnectExplanation}
+                  </p>
+                </div>
+              </div>
+              <TikTokConnectLink className="mt-4" variant="secondary">
+                Reconnect TikTok
+              </TikTokConnectLink>
+            </div>
+          ) : null}
+
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-start">
-            <TikTokConnectLink
-              className="w-full sm:w-auto"
-              variant={isConnected ? "secondary" : "primary"}
-            >
-              {isConnected ? "Reconnect TikTok" : "Connect TikTok"}
-            </TikTokConnectLink>
+            {!needsPublishingReconnect ? (
+              <TikTokConnectLink
+                className="w-full sm:w-auto"
+                variant={isConnected ? "secondary" : "primary"}
+              >
+                {isConnected ? "Reconnect TikTok" : "Connect TikTok"}
+              </TikTokConnectLink>
+            ) : null}
             {isConnected ? <DisconnectTikTokForm /> : null}
           </div>
         </Card>
@@ -128,19 +175,29 @@ export function AccountsView({
             </div>
             <div>
               <h2 className="text-lg font-semibold text-[var(--foreground)]">
-                Connection health
+                Publishing permissions
               </h2>
               <p className="mt-1 text-sm text-[var(--muted)]">
-                Stored OAuth status
+                {publishingPermissionsReady
+                  ? "Ready"
+                  : isConnected
+                    ? "Reconnect required"
+                    : "Connection required"}
               </p>
             </div>
           </div>
 
           <div className="mt-5 space-y-3">
             {[
-              ["Account token", isConnected ? "Stored" : "Waiting"],
-              ["Refresh token", isConnected ? "Stored" : "Waiting"],
-              ["Posting API", "Not enabled"],
+              ["Login Kit", isConnected ? "Authorized" : "Required"],
+              [
+                "Direct Post",
+                getPermissionStatus(canPublishDirect, isConnected),
+              ],
+              [
+                "Upload to TikTok",
+                getPermissionStatus(canUploadDraft, isConnected),
+              ],
             ].map(([label, value]) => (
               <div
                 key={label}
@@ -156,7 +213,11 @@ export function AccountsView({
 
           <div className="mt-5 flex items-center gap-2 rounded-[var(--radius)] border border-white/[0.07] bg-white/[0.025] px-3 py-2 text-xs text-[var(--muted)]">
             <RefreshCw size={14} className="text-[var(--muted-strong)]" aria-hidden="true" />
-            Reconnect any time to refresh TikTok authorization.
+            {publishingPermissionsReady
+              ? "The stored authorization includes Direct Post and upload permissions."
+              : isConnected
+                ? "Stored connections are not publishing-ready without the required OAuth scopes."
+                : "Connect TikTok to request the required OAuth scopes."}
           </div>
         </Card>
       </div>
@@ -166,4 +227,12 @@ export function AccountsView({
 
 function escapeCssUrl(value: string) {
   return value.replace(/["\\]/g, "\\$&");
+}
+
+function getPermissionStatus(authorized: boolean, connected: boolean) {
+  if (authorized) {
+    return "Authorized";
+  }
+
+  return connected ? "Reconnect required" : "Required";
 }
