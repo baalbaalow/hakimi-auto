@@ -10,6 +10,8 @@ const TIKTOK_USER_INFO_FIELDS = "open_id,avatar_url,display_name";
 
 export const TIKTOK_REQUESTED_SCOPES = [
   "user.info.basic",
+  "video.publish",
+  "video.upload",
 ] as const;
 
 const requiredTikTokEnvNames = [
