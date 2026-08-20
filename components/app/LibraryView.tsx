@@ -4,7 +4,9 @@ import { useMemo, useState } from "react";
 import {
   AlertCircle,
   CalendarDays,
+  Eye,
   FileVideo,
+  FolderOpen,
   Loader2,
   Search,
   Settings,
@@ -202,7 +204,7 @@ export function LibraryView({ initialUploads, loadError }: LibraryViewProps) {
           </label>
         </div>
 
-        <div className="hidden grid-cols-[minmax(12rem,1.1fr)_minmax(14rem,1fr)_7rem_8rem_6rem] gap-4 border-b border-white/[0.08] px-5 py-3 text-xs font-medium uppercase tracking-[0.16em] text-[var(--muted)] md:grid">
+        <div className="hidden grid-cols-[minmax(10rem,1.1fr)_minmax(10rem,1fr)_6rem_7rem_minmax(13rem,auto)] gap-4 border-b border-white/[0.08] px-5 py-3 text-xs font-medium uppercase tracking-[0.16em] text-[var(--muted)] xl:grid">
           <span>Video</span>
           <span>Details</span>
           <span>Status</span>
@@ -266,7 +268,7 @@ function UploadRow({
   const isDraft = upload.status === "draft";
 
   return (
-    <article className="grid gap-4 px-5 py-4 md:grid-cols-[minmax(12rem,1.1fr)_minmax(14rem,1fr)_7rem_8rem_6rem] md:items-center">
+    <article className="grid min-w-0 gap-4 px-5 py-4 xl:grid-cols-[minmax(10rem,1.1fr)_minmax(10rem,1fr)_6rem_7rem_minmax(13rem,auto)] xl:items-center">
       <div className="flex min-w-0 items-center gap-3">
         <div className="relative h-24 w-36 shrink-0 overflow-hidden rounded-[var(--radius)] border border-white/[0.1] bg-black/45">
           {upload.signedUrl ? (
@@ -284,7 +286,7 @@ function UploadRow({
             </div>
           )}
         </div>
-        <div className="min-w-0 md:hidden">
+        <div className="min-w-0 xl:hidden">
           <h3 className="truncate text-sm font-semibold text-[var(--foreground)]">
             {title}
           </h3>
@@ -294,7 +296,7 @@ function UploadRow({
         </div>
       </div>
 
-      <div className="hidden min-w-0 md:block">
+      <div className="hidden min-w-0 xl:block">
         <h3 className="truncate text-sm font-semibold text-[var(--foreground)]">
           {title}
         </h3>
@@ -314,7 +316,19 @@ function UploadRow({
         <span>{formatDate(upload.created_at)}</span>
       </div>
 
-      <div className="flex justify-start md:justify-end">
+      <div className="flex min-w-0 flex-wrap justify-start gap-2 xl:justify-end">
+        <Button
+          href={`/library/${upload.id}`}
+          variant="secondary"
+          size="sm"
+        >
+          {isDraft ? (
+            <FolderOpen size={15} aria-hidden="true" />
+          ) : (
+            <Eye size={15} aria-hidden="true" />
+          )}
+          {isDraft ? "Open Draft" : "View Details"}
+        </Button>
         {isDraft ? (
           <Button
             type="button"
@@ -330,11 +344,7 @@ function UploadRow({
             )}
             Delete
           </Button>
-        ) : (
-          <span className="rounded-[var(--radius)] border border-white/[0.07] bg-white/[0.025] px-3 py-2 text-xs text-[var(--muted)]">
-            Drafts only
-          </span>
-        )}
+        ) : null}
       </div>
     </article>
   );

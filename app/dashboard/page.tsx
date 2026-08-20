@@ -1,5 +1,6 @@
 import { DashboardOverview } from "@/components/app/DashboardOverview";
 import { requireAuthenticatedUser } from "@/lib/auth";
+import { getDraftReadiness } from "@/lib/draft-readiness";
 import { getTikTokAccountSummary } from "@/lib/tiktok-login";
 import { createClient } from "@/utils/supabase/server";
 
@@ -20,12 +21,15 @@ const emptyCounts: UploadCounts = {
 export default async function DashboardPage() {
   const user = await requireAuthenticatedUser();
   const supabase = await createClient();
-  const tiktokAccount = await getTikTokAccountSummary(user.id);
-  const { data: uploads, error: uploadsError } = await supabase
-    .from("uploads")
-    .select("id, title, status, created_at")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
+  const [tiktokAccount, uploadsResult] = await Promise.all([
+    getTikTokAccountSummary(user.id),
+    supabase
+      .from("uploads")
+      .select("id, title, caption, status, created_at, storage_path")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false }),
+  ]);
+  const { data: uploads, error: uploadsError } = uploadsResult;
 
   const uploadCounts = (uploads ?? []).reduce(
     (counts, upload) => {
@@ -39,12 +43,27 @@ export default async function DashboardPage() {
     },
     { ...emptyCounts },
   );
+  const tiktokConnected = Boolean(tiktokAccount?.tiktok_open_id);
+  const readyDraftCount = (uploads ?? []).filter((upload) =>
+    getDraftReadiness(
+      {
+        status: upload.status,
+        storage_path: upload.storage_path?.startsWith(`${user.id}/`)
+          ? upload.storage_path
+          : null,
+        title: upload.title,
+        caption: upload.caption,
+      },
+      tiktokConnected,
+    ).ready,
+  ).length;
 
   return (
     <DashboardOverview
       email={user.email}
       tiktokAccount={tiktokAccount}
       uploadCounts={uploadCounts}
+      readyDraftCount={readyDraftCount}
       recentUploads={(uploads ?? []).slice(0, 5)}
       uploadsLoadError={uploadsError ? "Upload activity could not be loaded." : null}
     />

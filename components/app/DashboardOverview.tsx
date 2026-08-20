@@ -23,6 +23,7 @@ type DashboardOverviewProps = {
   email?: string;
   tiktokAccount: TikTokAccountSummary | null;
   uploadCounts: UploadCounts;
+  readyDraftCount: number;
   recentUploads: RecentUpload[];
   uploadsLoadError: string | null;
 };
@@ -31,6 +32,7 @@ export function DashboardOverview({
   email,
   tiktokAccount,
   uploadCounts,
+  readyDraftCount,
   recentUploads,
   uploadsLoadError,
 }: DashboardOverviewProps) {
@@ -103,7 +105,7 @@ export function DashboardOverview({
         </div>
       </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <MetricCard
           label="TikTok account"
           value={isConnected ? "Ready" : "Pending"}
@@ -116,6 +118,13 @@ export function DashboardOverview({
           value={String(uploadCounts.draft)}
           detail="Private drafts saved in your library."
           icon={Video}
+        />
+        <MetricCard
+          label="Ready drafts"
+          value={String(readyDraftCount)}
+          detail="Prepared for the Content Posting API integration."
+          icon={Activity}
+          tone="emerald"
         />
         <MetricCard
           label="Saved uploads"

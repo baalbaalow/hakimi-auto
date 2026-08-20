@@ -1,4 +1,5 @@
 import { CalendarDays, FileVideo, UploadCloud } from "lucide-react";
+import Link from "next/link";
 import { EmptyState } from "@/components/app/EmptyState";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -47,9 +48,11 @@ export function RecentUploads({ uploads, loadError }: RecentUploadsProps) {
       ) : uploads.length > 0 ? (
         <div className="divide-y divide-white/[0.07]">
           {uploads.map((upload) => (
-            <div
+            <Link
               key={upload.id}
-              className="grid gap-3 px-5 py-4 sm:grid-cols-[1.2fr_1fr_7rem_8rem] sm:items-center"
+              href={`/library/${upload.id}`}
+              className="focus-ring grid gap-3 px-5 py-4 transition hover:bg-white/[0.035] sm:grid-cols-[1.2fr_1fr_7rem_8rem] sm:items-center"
+              aria-label={`${upload.status === "draft" ? "Open draft" : "View upload"}: ${upload.title || "Untitled draft"}`}
             >
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-[var(--foreground)]">
@@ -72,7 +75,7 @@ export function RecentUploads({ uploads, loadError }: RecentUploadsProps) {
                 <CalendarDays size={15} aria-hidden="true" />
                 <span>{formatDate(upload.created_at)}</span>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       ) : (

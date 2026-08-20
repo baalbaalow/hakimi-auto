@@ -25,13 +25,22 @@ import {
   ACTIVE_UPLOAD_STORAGE_KEY,
   LAST_ACTIVITY_STORAGE_KEY,
 } from "@/lib/inactivity";
+import {
+  DRAFT_CAPTION_MAX_LENGTH,
+  DRAFT_TITLE_MAX_LENGTH,
+  validateDraftMetadata,
+} from "@/lib/draft-validation";
 import type { TikTokAccountSummary } from "@/lib/tiktok-login";
+import {
+  ACCEPTED_VIDEO_EXTENSIONS,
+  ACCEPTED_VIDEO_MIME_TYPES,
+  MAX_VIDEO_FILE_BYTES,
+  MAX_VIDEO_FILE_LABEL,
+} from "@/lib/upload-limits";
 import { createClient } from "@/utils/supabase/client";
 
 const VIDEO_BUCKET = "videos";
-const CAPTION_LIMIT = 2200;
-const ACCEPTED_VIDEO_TYPES = new Set(["video/mp4", "video/quicktime"]);
-const ACCEPTED_VIDEO_EXTENSIONS = [".mp4", ".mov"];
+const ACCEPTED_VIDEO_TYPES = new Set<string>(ACCEPTED_VIDEO_MIME_TYPES);
 
 type UploadComposerProps = {
   userId: string;
@@ -68,12 +77,17 @@ export function UploadComposer({ userId, tiktokAccount }: UploadComposerProps) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [phase, setPhase] = useState<UploadPhase>("idle");
   const [uploadProgress, setUploadProgress] = useState(0);
+  const titleCount = useMemo(() => title.length, [title]);
   const captionCount = useMemo(() => caption.length, [caption]);
   const isBusy = phase === "uploading" || phase === "saving";
   const selectedFileError = selectedFile ? validateVideoFile(selectedFile) : null;
   const selectedFileSize = selectedFile ? formatFileSize(selectedFile.size) : null;
   const progressValue = phase === "saving" ? 100 : uploadProgress;
   const isTikTokConnected = Boolean(tiktokAccount?.tiktok_open_id);
+  const metadataValidation = useMemo(
+    () => validateDraftMetadata({ title, caption }),
+    [caption, title],
+  );
 
   const preflightItems = useMemo(
     () => [
@@ -88,13 +102,21 @@ export function UploadComposer({ userId, tiktokAccount }: UploadComposerProps) {
       },
       {
         label: "Title added",
-        status: title.trim() ? "Ready" : "Waiting",
-        ready: Boolean(title.trim()),
+        status: metadataValidation.fieldErrors.title
+          ? title.trim()
+            ? "Review"
+            : "Waiting"
+          : "Ready",
+        ready: !metadataValidation.fieldErrors.title,
       },
       {
         label: "Caption added",
-        status: caption.trim() ? "Ready" : "Waiting",
-        ready: Boolean(caption.trim()),
+        status: metadataValidation.fieldErrors.caption
+          ? caption.trim()
+            ? "Review"
+            : "Waiting"
+          : "Ready",
+        ready: !metadataValidation.fieldErrors.caption,
       },
       {
         label: "Private storage",
@@ -102,7 +124,7 @@ export function UploadComposer({ userId, tiktokAccount }: UploadComposerProps) {
         ready: true,
       },
     ],
-    [caption, selectedFile, selectedFileError, title],
+    [caption, metadataValidation.fieldErrors, selectedFile, selectedFileError, title],
   );
 
   useEffect(() => {
@@ -385,9 +407,6 @@ export function UploadComposer({ userId, tiktokAccount }: UploadComposerProps) {
                   <p className="mx-auto mt-5 max-w-lg text-lg font-semibold text-[var(--foreground)]">
                     Drag and drop your video here
                   </p>
-                  <p className="mt-2 text-sm text-[var(--muted)]">
-                    MP4 or MOV video files.
-                  </p>
                 </>
               )}
 
@@ -405,6 +424,9 @@ export function UploadComposer({ userId, tiktokAccount }: UploadComposerProps) {
                   }
                 />
               </label>
+              <p className="mt-3 text-sm text-[var(--muted)]">
+                MP4 or MOV &middot; Maximum {MAX_VIDEO_FILE_LABEL}
+              </p>
 
               {fieldErrors.file ? (
                 <p className="mt-4 text-sm text-rose-200">{fieldErrors.file}</p>
@@ -436,12 +458,19 @@ export function UploadComposer({ userId, tiktokAccount }: UploadComposerProps) {
                     setTitle(event.target.value);
                     setError(null);
                     setSuccessMessage(null);
+                    setFieldErrors((currentErrors) => ({
+                      ...currentErrors,
+                      title: undefined,
+                    }));
                   }}
                   placeholder="Enter a title"
                   className="mt-2"
                   disabled={isBusy}
                   aria-invalid={Boolean(fieldErrors.title)}
                 />
+                <span className="mt-2 block text-xs text-[var(--muted)]">
+                  {titleCount}/{DRAFT_TITLE_MAX_LENGTH} characters
+                </span>
                 {fieldErrors.title ? (
                   <span className="mt-2 block text-sm text-rose-200">
                     {fieldErrors.title}
@@ -456,16 +485,19 @@ export function UploadComposer({ userId, tiktokAccount }: UploadComposerProps) {
                     setCaption(event.target.value);
                     setError(null);
                     setSuccessMessage(null);
+                    setFieldErrors((currentErrors) => ({
+                      ...currentErrors,
+                      caption: undefined,
+                    }));
                   }}
                   placeholder="Write a short caption"
                   rows={7}
-                  maxLength={CAPTION_LIMIT}
                   className="mt-2"
                   disabled={isBusy}
                   aria-invalid={Boolean(fieldErrors.caption)}
                 />
                 <span className="mt-2 block text-xs text-[var(--muted)]">
-                  {captionCount}/{CAPTION_LIMIT} characters
+                  {captionCount}/{DRAFT_CAPTION_MAX_LENGTH} characters
                 </span>
                 {fieldErrors.caption ? (
                   <span className="mt-2 block text-sm text-rose-200">
@@ -633,17 +665,10 @@ function validateForm(
     errors.file = fileError;
   }
 
-  if (!title) {
-    errors.title = "Add a title before saving the draft.";
-  }
-
-  if (!caption) {
-    errors.caption = "Add a caption before saving the draft.";
-  }
-
-  if (caption.length > CAPTION_LIMIT) {
-    errors.caption = `Keep the caption under ${CAPTION_LIMIT} characters.`;
-  }
+  Object.assign(
+    errors,
+    validateDraftMetadata({ title, caption }).fieldErrors,
+  );
 
   return errors;
 }
@@ -655,6 +680,10 @@ function validateVideoFile(file: File | null) {
 
   if (file.size <= 0) {
     return "Choose a video file that is not empty.";
+  }
+
+  if (file.size > MAX_VIDEO_FILE_BYTES) {
+    return `Video must be ${MAX_VIDEO_FILE_LABEL} or smaller.`;
   }
 
   if (!isAcceptedVideoFile(file)) {
