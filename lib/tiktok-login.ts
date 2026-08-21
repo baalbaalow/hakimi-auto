@@ -1,6 +1,7 @@
 import "server-only";
 
 import { randomBytes } from "crypto";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { createClient } from "@/utils/supabase/server";
 
 const TIKTOK_AUTHORIZE_URL = "https://www.tiktok.com/v2/auth/authorize/";
@@ -51,7 +52,6 @@ type TikTokUserInfo = {
 };
 
 type TikTokAccountPayload = {
-  user_id: string;
   tiktok_open_id: string | null;
   display_name: string | null;
   avatar_url: string | null;
@@ -266,13 +266,24 @@ export async function getTikTokAccountSummary(
 }
 
 export async function saveTikTokAccount(
+  authenticatedUserId: string,
   account: TikTokAccountPayload,
 ): Promise<boolean> {
-  const supabase = await createClient();
-  const { data: existingAccount, error: selectError } = await supabase
+  let admin: ReturnType<typeof createAdminClient>;
+
+  try {
+    admin = createAdminClient();
+  } catch (error) {
+    logTikTokError("admin client initialization failed", {
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+    return false;
+  }
+
+  const { data: existingAccount, error: selectError } = await admin
     .from("tiktok_accounts")
     .select("id")
-    .eq("user_id", account.user_id)
+    .eq("user_id", authenticatedUserId)
     .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -286,15 +297,18 @@ export async function saveTikTokAccount(
   }
 
   if (existingAccount) {
-    const { error } = await supabase
+    const { data: updatedAccount, error } = await admin
       .from("tiktok_accounts")
       .update(account)
-      .eq("id", existingAccount.id);
+      .eq("id", existingAccount.id)
+      .eq("user_id", authenticatedUserId)
+      .select("id")
+      .maybeSingle();
 
-    if (error) {
+    if (error || !updatedAccount) {
       logTikTokError("account update failed", {
-        code: error.code,
-        message: error.message,
+        code: error?.code,
+        message: error?.message,
       });
       return false;
     }
@@ -302,7 +316,10 @@ export async function saveTikTokAccount(
     return true;
   }
 
-  const { error } = await supabase.from("tiktok_accounts").insert(account);
+  const { error } = await admin.from("tiktok_accounts").insert({
+    ...account,
+    user_id: authenticatedUserId,
+  });
 
   if (error) {
     logTikTokError("account insert failed", {
@@ -316,12 +333,10 @@ export async function saveTikTokAccount(
 }
 
 export function buildTikTokAccountPayload(
-  userId: string,
   token: TikTokTokenResponse,
   userInfo: TikTokUserInfo | null,
 ): TikTokAccountPayload {
   return {
-    user_id: userId,
     tiktok_open_id: userInfo?.open_id ?? token.open_id,
     display_name: userInfo?.display_name ?? null,
     avatar_url: userInfo?.avatar_url ?? null,

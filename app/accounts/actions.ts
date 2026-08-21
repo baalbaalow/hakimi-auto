@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { createClient } from "@/utils/supabase/server";
 
 const TIKTOK_REVOKE_URL = "https://open.tiktokapis.com/v2/oauth/revoke/";
@@ -45,7 +46,22 @@ export async function disconnectTikTokAccount(): Promise<DisconnectTikTokState> 
     };
   }
 
-  const { data: account, error: accountError } = await supabase
+  let admin: ReturnType<typeof createAdminClient>;
+
+  try {
+    admin = createAdminClient();
+  } catch (error) {
+    console.error("[tiktok] admin client initialization for disconnect failed", {
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+
+    return {
+      ok: false,
+      message: "TikTok disconnect is not configured. Check the server environment.",
+    };
+  }
+
+  const { data: account, error: accountError } = await admin
     .from("tiktok_accounts")
     .select("id, access_token")
     .eq("user_id", user.id)
@@ -85,7 +101,7 @@ export async function disconnectTikTokAccount(): Promise<DisconnectTikTokState> 
     };
   }
 
-  const { error: deleteError } = await supabase
+  const { error: deleteError } = await admin
     .from("tiktok_accounts")
     .delete()
     .eq("id", account.id)
