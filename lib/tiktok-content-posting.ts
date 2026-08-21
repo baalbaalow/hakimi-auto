@@ -708,16 +708,33 @@ async function initializeTikTokDirectPost({
   }
 
   const data = asRecord(payload.data);
-  const publishId = getSafePublishId(data?.publish_id);
-  const uploadUrl = getSafeTikTokUploadUrl(data?.upload_url);
+  const rawPublishId = data?.publish_id;
+  const rawUploadUrl = data?.upload_url;
+  const publishId = getSafePublishId(rawPublishId);
+  const uploadUrl = getSafeTikTokUploadUrl(rawUploadUrl);
 
   if (
     !publishId ||
     !uploadUrl
   ) {
+    const uploadUrlMetadata = getUrlDiagnosticMetadata(rawUploadUrl);
+
     logContentPostingError("Direct Post initialization response was incomplete", {
       status: response.status,
       code: responseCode,
+      log_id: getOptionalString(payload.error?.log_id),
+      raw_publish_id_exists:
+        rawPublishId !== null && rawPublishId !== undefined,
+      raw_publish_id_length:
+        typeof rawPublishId === "string" ? rawPublishId.length : null,
+      raw_upload_url_exists:
+        rawUploadUrl !== null && rawUploadUrl !== undefined,
+      raw_upload_url_length:
+        typeof rawUploadUrl === "string" ? rawUploadUrl.length : null,
+      upload_url_protocol: uploadUrlMetadata.protocol,
+      upload_url_hostname: uploadUrlMetadata.hostname,
+      publish_id_accepted: Boolean(publishId),
+      upload_url_accepted: Boolean(uploadUrl),
     });
     return directPostError(
       "TikTok returned an incomplete upload response. Please try again.",
@@ -1102,6 +1119,29 @@ function getSafePublishId(value: unknown) {
   }
 
   return publishId;
+}
+
+function getUrlDiagnosticMetadata(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) {
+    return {
+      protocol: null,
+      hostname: null,
+    };
+  }
+
+  try {
+    const url = new URL(value);
+
+    return {
+      protocol: url.protocol || null,
+      hostname: url.hostname || null,
+    };
+  } catch {
+    return {
+      protocol: null,
+      hostname: null,
+    };
+  }
 }
 
 function getErrorName(error: unknown) {
