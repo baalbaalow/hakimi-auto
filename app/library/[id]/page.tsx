@@ -10,12 +10,14 @@ import { notFound } from "next/navigation";
 import { AppPageHeader } from "@/components/app/AppPageHeader";
 import { DraftMetadataForm } from "@/components/app/DraftMetadataForm";
 import { DraftReadinessCard } from "@/components/app/DraftReadinessCard";
+import { TikTokPublishingSettings } from "@/components/app/TikTokPublishingSettings";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import { requireAuthenticatedUser } from "@/lib/auth";
 import { getDraftReadiness } from "@/lib/draft-readiness";
 import { isUuid } from "@/lib/identifiers";
+import { queryTikTokCreatorInfo } from "@/lib/tiktok-content-posting";
 import { getTikTokAccountSummary } from "@/lib/tiktok-login";
 import { createClient } from "@/utils/supabase/server";
 
@@ -52,6 +54,10 @@ export default async function DraftDetailPage({ params }: DraftDetailPageProps) 
   }
 
   const upload = uploadResult.data;
+  const isDraft = upload.status === "draft";
+  const creatorInfoPromise = isDraft
+    ? queryTikTokCreatorInfo()
+    : Promise.resolve(null);
   const ownedStoragePath =
     upload.storage_path?.startsWith(`${user.id}/`) === true
       ? upload.storage_path
@@ -66,6 +72,8 @@ export default async function DraftDetailPage({ params }: DraftDetailPageProps) 
     signedUrl = signedData?.signedUrl ?? null;
   }
 
+  const creatorInfoResult = await creatorInfoPromise;
+
   const tiktokConnected = Boolean(tiktokAccount?.tiktok_open_id);
   const readiness = getDraftReadiness(
     {
@@ -79,7 +87,6 @@ export default async function DraftDetailPage({ params }: DraftDetailPageProps) 
       canPublishDirect: Boolean(tiktokAccount?.canPublishDirect),
     },
   );
-  const isDraft = upload.status === "draft";
   const displayTitle = upload.title?.trim() || "Untitled draft";
   const storageState = getStorageState({
     hasStoredPath: Boolean(upload.storage_path),
@@ -239,6 +246,12 @@ export default async function DraftDetailPage({ params }: DraftDetailPageProps) 
           </dl>
         </Card>
       </div>
+
+      {isDraft && creatorInfoResult ? (
+        <TikTokPublishingSettings
+          creatorInfoResult={creatorInfoResult}
+        />
+      ) : null}
     </div>
   );
 }
