@@ -250,6 +250,8 @@ export default async function DraftDetailPage({ params }: DraftDetailPageProps) 
       {isDraft && creatorInfoResult ? (
         <TikTokPublishingSettings
           creatorInfoResult={creatorInfoResult}
+          uploadId={upload.id}
+          draftReady={readiness.ready}
         />
       ) : null}
     </div>

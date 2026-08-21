@@ -350,7 +350,7 @@ export function buildTikTokAccountPayload(
   };
 }
 
-function normalizeTikTokAuthorizedScopes(value: unknown) {
+export function normalizeTikTokAuthorizedScopes(value: unknown) {
   if (typeof value !== "string") {
     return null;
   }
@@ -367,7 +367,7 @@ function normalizeTikTokAuthorizedScopes(value: unknown) {
   return scopes.length > 0 ? scopes.join(",") : null;
 }
 
-function hasAuthorizedTikTokScope(
+export function hasAuthorizedTikTokScope(
   authorizedScopes: string | null,
   requiredScope: string,
 ) {
@@ -380,7 +380,7 @@ function hasAuthorizedTikTokScope(
     .some((scope) => scope.trim() === requiredScope);
 }
 
-function secondsFromNowToIso(seconds: number) {
+export function secondsFromNowToIso(seconds: number) {
   if (!Number.isFinite(seconds) || seconds <= 0) {
     return null;
   }
