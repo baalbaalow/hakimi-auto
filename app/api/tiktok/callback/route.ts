@@ -51,7 +51,8 @@ export async function GET(request: Request) {
 
   const userInfo = await fetchTikTokUserInfo(token.access_token);
   const saved = await saveTikTokAccount(
-    buildTikTokAccountPayload(user.id, token, userInfo),
+    user.id,
+    buildTikTokAccountPayload(token, userInfo),
   );
 
   return redirectToAccounts(request, saved ? "success" : "error");
