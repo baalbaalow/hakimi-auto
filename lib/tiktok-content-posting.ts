@@ -1107,9 +1107,12 @@ function getSafeTikTokUploadUrl(value: unknown) {
 
   try {
     const url = new URL(value);
+    const hostname = url.hostname.toLowerCase();
     const isTikTokHost =
-      url.hostname === "tiktokapis.com" ||
-      url.hostname.endsWith(".tiktokapis.com");
+      hostname === "tiktokapis.com" ||
+      hostname.endsWith(".tiktokapis.com") ||
+      hostname === "tiktokapis.us" ||
+      hostname.endsWith(".tiktokapis.us");
 
     return url.protocol === "https:" && isTikTokHost && !url.hash
       ? url.toString()
