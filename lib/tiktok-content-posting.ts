@@ -10,6 +10,7 @@ import {
   normalizeTikTokAuthorizedScopes,
   secondsFromNowToIso,
 } from "@/lib/tiktok-login";
+import { isUuid } from "@/lib/identifiers";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { createClient } from "@/utils/supabase/server";
 
@@ -23,16 +24,21 @@ export const TIKTOK_CREATOR_INFO_ENDPOINT =
   "https://open.tiktokapis.com/v2/post/publish/creator_info/query/";
 export const TIKTOK_DIRECT_POST_ENDPOINT =
   "https://open.tiktokapis.com/v2/post/publish/video/init/";
+export const TIKTOK_PUBLISH_STATUS_ENDPOINT =
+  "https://open.tiktokapis.com/v2/post/publish/status/fetch/";
 
 const TIKTOK_TOKEN_ENDPOINT =
   "https://open.tiktokapis.com/v2/oauth/token/";
 const VIDEO_PUBLISH_SCOPE = "video.publish";
+const VIDEO_UPLOAD_SCOPE = "video.upload";
 const ACCESS_TOKEN_REFRESH_MARGIN_MS = 5 * 60 * 1000;
 const API_REQUEST_TIMEOUT_MS = 15_000;
 const VIDEO_UPLOAD_TIMEOUT_MS = 120_000;
 const MAX_SINGLE_UPLOAD_BYTES = 64 * 1024 * 1024;
 const MAX_TIKTOK_CAPTION_LENGTH = 2_200;
 const MAX_PUBLISH_ID_LENGTH = 64;
+const MAX_TIKTOK_STATUS_LENGTH = 64;
+const MAX_TIKTOK_FAIL_REASON_LENGTH = 120;
 const SUPPORTED_VIDEO_MIME_TYPES = new Set([
   "video/mp4",
   "video/quicktime",
@@ -43,6 +49,7 @@ const refreshRequests = new Map<string, Promise<ValidAccessTokenResult>>();
 type ValidAccessTokenResult =
   | {
       ok: true;
+      accountId: string;
       accessToken: string;
       authorizedScopes: string | null;
     }
@@ -85,6 +92,17 @@ export type TikTokDirectPostResult =
       message: string;
     };
 
+export type TikTokPublishStatusResult =
+  | {
+      ok: true;
+      status: "processing" | "published" | "failed" | "unchanged";
+      message: string;
+    }
+  | {
+      ok: false;
+      message: string;
+    };
+
 type TikTokRefreshTokenPayload = {
   data?: unknown;
   access_token?: unknown;
@@ -115,6 +133,28 @@ type TikTokDirectPostPayload = {
     log_id?: unknown;
   };
 };
+
+type TikTokPublishStatusPayload = {
+  data?: unknown;
+  error?: {
+    code?: unknown;
+    message?: unknown;
+    log_id?: unknown;
+  };
+};
+
+type TikTokPublishStatusApiResult =
+  | {
+      ok: true;
+      status: string;
+      failReason: string | null;
+    }
+  | {
+      ok: false;
+      code: string | null;
+      message: string;
+      shouldRefreshToken: boolean;
+    };
 
 export async function queryTikTokCreatorInfo(): Promise<TikTokCreatorInfoResult> {
   const supabase = await createClient();
@@ -148,6 +188,10 @@ export async function queryTikTokCreatorInfo(): Promise<TikTokCreatorInfoResult>
 
 export async function getValidTikTokAccessToken(
   authenticatedUserId: string,
+  options: {
+    accountId?: string;
+    forceRefresh?: boolean;
+  } = {},
 ): Promise<ValidAccessTokenResult> {
   const supabase = await createClient();
   const {
@@ -177,15 +221,18 @@ export async function getValidTikTokAccessToken(
     );
   }
 
-  const { data: account, error: accountError } = await admin
+  const accountQuery = admin
     .from("tiktok_accounts")
     .select(
       "id, tiktok_open_id, access_token, refresh_token, authorized_scopes, access_token_expires_at, refresh_token_expires_at",
     )
-    .eq("user_id", authenticatedUserId)
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .eq("user_id", authenticatedUserId);
+  const { data: account, error: accountError } = options.accountId
+    ? await accountQuery.eq("id", options.accountId).maybeSingle()
+    : await accountQuery
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
   if (accountError) {
     logContentPostingError("credential lookup failed", {
@@ -205,9 +252,13 @@ export async function getValidTikTokAccessToken(
     );
   }
 
-  if (isSufficientlyValid(account.access_token_expires_at)) {
+  if (
+    !options.forceRefresh &&
+    isSufficientlyValid(account.access_token_expires_at)
+  ) {
     return {
       ok: true,
+      accountId: account.id,
       accessToken: account.access_token,
       authorizedScopes: account.authorized_scopes,
     };
@@ -217,7 +268,8 @@ export async function getValidTikTokAccessToken(
     return expiredAuthorizationError();
   }
 
-  const existingRefresh = refreshRequests.get(authenticatedUserId);
+  const refreshRequestKey = `${authenticatedUserId}:${account.id}`;
+  const existingRefresh = refreshRequests.get(refreshRequestKey);
 
   if (existingRefresh) {
     return existingRefresh;
@@ -232,13 +284,13 @@ export async function getValidTikTokAccessToken(
       refresh_token: account.refresh_token,
     },
   });
-  refreshRequests.set(authenticatedUserId, refreshRequest);
+  refreshRequests.set(refreshRequestKey, refreshRequest);
 
   try {
     return await refreshRequest;
   } finally {
-    if (refreshRequests.get(authenticatedUserId) === refreshRequest) {
-      refreshRequests.delete(authenticatedUserId);
+    if (refreshRequests.get(refreshRequestKey) === refreshRequest) {
+      refreshRequests.delete(refreshRequestKey);
     }
   }
 }
@@ -249,7 +301,10 @@ export async function executeTikTokDirectPost(input: {
   videoMimeType: string;
   videoDurationSeconds: number;
   settings: TikTokDirectPostSettings;
-  savePublishId: (publishId: string) => Promise<boolean>;
+  savePublishId: (
+    publishId: string,
+    tiktokAccountId: string,
+  ) => Promise<boolean>;
 }): Promise<TikTokDirectPostResult> {
   const supabase = await createClient();
   const {
@@ -304,7 +359,10 @@ export async function executeTikTokDirectPost(input: {
   let publishIdSaved = false;
 
   try {
-    publishIdSaved = await input.savePublishId(initialization.publishId);
+    publishIdSaved = await input.savePublishId(
+      initialization.publishId,
+      token.accountId,
+    );
   } catch {
     publishIdSaved = false;
   }
@@ -335,6 +393,207 @@ export async function executeTikTokDirectPost(input: {
     ok: true,
     publishId: initialization.publishId,
   };
+}
+
+export async function fetchTikTokPublishStatus(
+  uploadId: string,
+): Promise<TikTokPublishStatusResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return publishStatusError(
+      "Sign in again before checking TikTok publishing status.",
+    );
+  }
+
+  if (!isUuid(uploadId)) {
+    return publishStatusError("This upload could not be found.");
+  }
+
+  const { data: upload, error: uploadError } = await supabase
+    .from("uploads")
+    .select("id, status, publish_id, tiktok_account_id")
+    .eq("id", uploadId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (uploadError) {
+    logContentPostingError("owned upload status lookup failed", {
+      code: uploadError.code,
+    });
+    return publishStatusError(
+      "The upload could not be checked. Please try again.",
+    );
+  }
+
+  if (!upload) {
+    return publishStatusError("This upload could not be found.");
+  }
+
+  if (upload.status !== "queued" && upload.status !== "processing") {
+    return publishStatusError(
+      "TikTok status can only be checked for queued or processing uploads.",
+    );
+  }
+
+  const publishId = getSafePublishId(upload.publish_id);
+
+  if (!publishId) {
+    return publishStatusError(
+      "This upload does not have a valid TikTok publishing ID.",
+    );
+  }
+
+  const accountResolution = await resolveTikTokAccountForStatus({
+    supabase,
+    authenticatedUserId: user.id,
+    storedTikTokAccountId: upload.tiktok_account_id,
+  });
+
+  if (!accountResolution.ok) {
+    return publishStatusError(accountResolution.message);
+  }
+
+  let token = await getValidTikTokAccessToken(user.id, {
+    accountId: accountResolution.accountId,
+  });
+
+  if (!token.ok) {
+    return publishStatusError(token.message);
+  }
+
+  if (!hasTikTokPublishStatusScope(token.authorizedScopes)) {
+    return publishStatusError(
+      "Reconnect TikTok to authorize publishing status checks.",
+    );
+  }
+
+  let statusResult = await requestTikTokPublishStatus({
+    accessToken: token.accessToken,
+    publishId,
+  });
+
+  if (!statusResult.ok && statusResult.shouldRefreshToken) {
+    token = await getValidTikTokAccessToken(user.id, {
+      accountId: accountResolution.accountId,
+      forceRefresh: true,
+    });
+
+    if (!token.ok) {
+      return publishStatusError(token.message);
+    }
+
+    if (!hasTikTokPublishStatusScope(token.authorizedScopes)) {
+      return publishStatusError(
+        "Reconnect TikTok to authorize publishing status checks.",
+      );
+    }
+
+    statusResult = await requestTikTokPublishStatus({
+      accessToken: token.accessToken,
+      publishId,
+    });
+  }
+
+  if (!statusResult.ok) {
+    return publishStatusError(statusResult.message);
+  }
+
+  const shouldBackfillAccount = accountResolution.legacyFallback;
+  const updateContext = {
+    supabase,
+    uploadId: upload.id,
+    authenticatedUserId: user.id,
+    publishId,
+    tiktokAccountId: accountResolution.accountId,
+    shouldBackfillAccount,
+  };
+
+  if (
+    statusResult.status === "PROCESSING_UPLOAD" ||
+    statusResult.status === "PROCESSING_DOWNLOAD"
+  ) {
+    const updated = await updateOwnedTikTokPublishingState({
+      ...updateContext,
+      status: "processing",
+      errorMessage: null,
+    });
+
+    return updated
+      ? publishStatusSuccess(
+          "processing",
+          "TikTok is still processing this video.",
+        )
+      : publishStatusPersistenceError();
+  }
+
+  if (statusResult.status === "SEND_TO_USER_INBOX") {
+    const updated = await updateOwnedTikTokPublishingState({
+      ...updateContext,
+      status: "processing",
+      errorMessage: null,
+    });
+
+    return updated
+      ? publishStatusSuccess(
+          "processing",
+          "TikTok sent this video to the creator inbox and has not confirmed a Direct Post.",
+        )
+      : publishStatusPersistenceError();
+  }
+
+  if (statusResult.status === "PUBLISH_COMPLETE") {
+    const updated = await updateOwnedTikTokPublishingState({
+      ...updateContext,
+      status: "published",
+      errorMessage: null,
+    });
+
+    return updated
+      ? publishStatusSuccess(
+          "published",
+          "TikTok confirmed that this video was published.",
+        )
+      : publishStatusPersistenceError();
+  }
+
+  if (statusResult.status === "FAILED") {
+    const failReason = statusResult.failReason ?? "unknown";
+    const updated = await updateOwnedTikTokPublishingState({
+      ...updateContext,
+      status: "failed",
+      errorMessage: `TikTok processing failed: ${failReason}`,
+    });
+
+    return updated
+      ? publishStatusSuccess(
+          "failed",
+          `TikTok could not publish this video: ${failReason}`,
+        )
+      : publishStatusPersistenceError();
+  }
+
+  logContentPostingError("TikTok returned an unrecognized publishing status", {
+    status: statusResult.status,
+  });
+
+  if (
+    shouldBackfillAccount &&
+    !(await backfillOwnedTikTokAccount({
+      ...updateContext,
+    }))
+  ) {
+    return publishStatusPersistenceError();
+  }
+
+  return publishStatusSuccess(
+    "unchanged",
+    "TikTok returned an unrecognized publishing status. Please check again later.",
+  );
 }
 
 async function refreshTikTokAccessToken({
@@ -438,9 +697,249 @@ async function refreshTikTokAccessToken({
 
   return {
     ok: true,
+    accountId: account.id,
     accessToken,
     authorizedScopes,
   };
+}
+
+async function resolveTikTokAccountForStatus({
+  supabase,
+  authenticatedUserId,
+  storedTikTokAccountId,
+}: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  authenticatedUserId: string;
+  storedTikTokAccountId: unknown;
+}): Promise<
+  | { ok: true; accountId: string; legacyFallback: boolean }
+  | { ok: false; message: string }
+> {
+  if (storedTikTokAccountId !== null) {
+    if (typeof storedTikTokAccountId !== "string" || !isUuid(storedTikTokAccountId)) {
+      return {
+        ok: false,
+        message: "This upload has an invalid TikTok account link.",
+      };
+    }
+
+    return {
+      ok: true,
+      accountId: storedTikTokAccountId,
+      legacyFallback: false,
+    };
+  }
+
+  const { data: accounts, error: accountsError } = await supabase
+    .from("tiktok_accounts")
+    .select("id")
+    .eq("user_id", authenticatedUserId)
+    .limit(2);
+
+  if (accountsError) {
+    logContentPostingError("legacy TikTok account lookup failed", {
+      code: accountsError.code,
+    });
+    return {
+      ok: false,
+      message: "The TikTok account for this upload could not be checked.",
+    };
+  }
+
+  if (!accounts || accounts.length === 0) {
+    return {
+      ok: false,
+      message: "Connect TikTok before checking this publishing status.",
+    };
+  }
+
+  if (accounts.length !== 1) {
+    return {
+      ok: false,
+      message:
+        "This legacy upload is not linked to a TikTok account, and more than one account is available. The account cannot be selected safely.",
+    };
+  }
+
+  const accountId = accounts[0]?.id;
+
+  if (typeof accountId !== "string" || !isUuid(accountId)) {
+    return {
+      ok: false,
+      message: "The TikTok account for this upload is invalid.",
+    };
+  }
+
+  return {
+    ok: true,
+    accountId,
+    legacyFallback: true,
+  };
+}
+
+async function requestTikTokPublishStatus({
+  accessToken,
+  publishId,
+}: {
+  accessToken: string;
+  publishId: string;
+}): Promise<TikTokPublishStatusApiResult> {
+  let response: Response;
+  let payload: TikTokPublishStatusPayload;
+
+  try {
+    response = await fetch(TIKTOK_PUBLISH_STATUS_ENDPOINT, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json; charset=UTF-8",
+        "Cache-Control": "no-cache",
+      },
+      body: JSON.stringify({ publish_id: publishId }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(API_REQUEST_TIMEOUT_MS),
+    });
+    payload = (await response.json()) as TikTokPublishStatusPayload;
+  } catch (error) {
+    logContentPostingError("TikTok publish status request failed", {
+      name: getErrorName(error),
+    });
+    return {
+      ok: false,
+      code: null,
+      message: isTimeoutError(error)
+        ? "TikTok status checking timed out. Please try again."
+        : "TikTok publishing status could not be reached. Please try again.",
+      shouldRefreshToken: false,
+    };
+  }
+
+  const responseCode = getOptionalString(payload.error?.code);
+
+  if (!response.ok || responseCode !== "ok") {
+    logContentPostingError("TikTok rejected the publish status request", {
+      status: response.status,
+      code: responseCode,
+      log_id: getOptionalString(payload.error?.log_id),
+    });
+    return {
+      ok: false,
+      code: responseCode,
+      message: mapTikTokPublishStatusError(response.status, responseCode),
+      shouldRefreshToken:
+        responseCode === "access_token_invalid" ||
+        (response.status === 401 && responseCode === null),
+    };
+  }
+
+  const data = asRecord(payload.data);
+  const status = getSafeTikTokStatus(data?.status);
+
+  if (!status) {
+    logContentPostingError("TikTok publish status response was incomplete", {
+      status: response.status,
+      code: responseCode,
+      log_id: getOptionalString(payload.error?.log_id),
+    });
+    return {
+      ok: false,
+      code: "invalid_response",
+      message: "TikTok returned an incomplete publishing status. Please try again.",
+      shouldRefreshToken: false,
+    };
+  }
+
+  return {
+    ok: true,
+    status,
+    failReason: getSafeTikTokFailReason(data?.fail_reason),
+  };
+}
+
+async function updateOwnedTikTokPublishingState({
+  supabase,
+  uploadId,
+  authenticatedUserId,
+  publishId,
+  tiktokAccountId,
+  shouldBackfillAccount,
+  status,
+  errorMessage,
+}: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  uploadId: string;
+  authenticatedUserId: string;
+  publishId: string;
+  tiktokAccountId: string;
+  shouldBackfillAccount: boolean;
+  status: "processing" | "published" | "failed";
+  errorMessage: string | null;
+}) {
+  let updateQuery = supabase
+    .from("uploads")
+    .update({
+      status,
+      error_message: errorMessage,
+      ...(shouldBackfillAccount
+        ? { tiktok_account_id: tiktokAccountId }
+        : {}),
+    })
+    .eq("id", uploadId)
+    .eq("user_id", authenticatedUserId)
+    .in("status", ["queued", "processing"])
+    .eq("publish_id", publishId);
+
+  updateQuery = shouldBackfillAccount
+    ? updateQuery.is("tiktok_account_id", null)
+    : updateQuery.eq("tiktok_account_id", tiktokAccountId);
+
+  const { data: updatedUpload, error: updateError } = await updateQuery
+    .select("id")
+    .maybeSingle();
+
+  if (updateError || !updatedUpload) {
+    logContentPostingError("owned TikTok publishing state update failed", {
+      code: updateError?.code,
+    });
+    return false;
+  }
+
+  return true;
+}
+
+async function backfillOwnedTikTokAccount({
+  supabase,
+  uploadId,
+  authenticatedUserId,
+  publishId,
+  tiktokAccountId,
+}: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  uploadId: string;
+  authenticatedUserId: string;
+  publishId: string;
+  tiktokAccountId: string;
+  shouldBackfillAccount: boolean;
+}) {
+  const { data: updatedUpload, error: updateError } = await supabase
+    .from("uploads")
+    .update({ tiktok_account_id: tiktokAccountId })
+    .eq("id", uploadId)
+    .eq("user_id", authenticatedUserId)
+    .in("status", ["queued", "processing"])
+    .eq("publish_id", publishId)
+    .is("tiktok_account_id", null)
+    .select("id")
+    .maybeSingle();
+
+  if (updateError || !updatedUpload) {
+    logContentPostingError("legacy TikTok account backfill failed", {
+      code: updateError?.code,
+    });
+    return false;
+  }
+
+  return true;
 }
 
 async function queryTikTokCreatorInfoWithToken(
@@ -933,6 +1432,37 @@ function mapDirectPostError(status: number, responseCode: string | null) {
   return "TikTok could not initialize this post. Please try again.";
 }
 
+function mapTikTokPublishStatusError(
+  status: number,
+  responseCode: string | null,
+) {
+  if (responseCode === "invalid_publish_id") {
+    return "TikTok could not find this publishing record.";
+  }
+
+  if (responseCode === "token_not_authorized_for_specified_publish_id") {
+    return "The connected TikTok account is not authorized for this publishing record.";
+  }
+
+  if (responseCode === "scope_not_authorized") {
+    return "Reconnect TikTok to authorize publishing status checks.";
+  }
+
+  if (status === 401 || responseCode === "access_token_invalid") {
+    return "TikTok authorization expired. Reconnect TikTok.";
+  }
+
+  if (status === 429 || responseCode === "rate_limit_exceeded") {
+    return "TikTok status was checked too often. Please wait and try again.";
+  }
+
+  if (status >= 500 || responseCode === "internal_error") {
+    return "TikTok is temporarily unable to check publishing status. Please try again later.";
+  }
+
+  return "TikTok could not check this publishing status. Please try again.";
+}
+
 function mapUploadError(status: number) {
   if (status === 400) {
     return "TikTok rejected the video upload request. Do not retry until publishing status is checked.";
@@ -973,6 +1503,30 @@ function directPostError(message: string) {
     ok: false as const,
     message,
   };
+}
+
+function publishStatusSuccess(
+  status: Extract<TikTokPublishStatusResult, { ok: true }>["status"],
+  message: string,
+): TikTokPublishStatusResult {
+  return {
+    ok: true,
+    status,
+    message,
+  };
+}
+
+function publishStatusError(message: string): TikTokPublishStatusResult {
+  return {
+    ok: false,
+    message,
+  };
+}
+
+function publishStatusPersistenceError(): TikTokPublishStatusResult {
+  return publishStatusError(
+    "TikTok returned a status, but the owned upload record changed before it could be saved. Refresh and check again.",
+  );
 }
 
 function preInitError(message: string): TikTokDirectPostResult {
@@ -1078,6 +1632,38 @@ function getPositiveInteger(value: unknown) {
     value > 0
     ? value
     : null;
+}
+
+function hasTikTokPublishStatusScope(authorizedScopes: string | null) {
+  return (
+    hasAuthorizedTikTokScope(authorizedScopes, VIDEO_PUBLISH_SCOPE) ||
+    hasAuthorizedTikTokScope(authorizedScopes, VIDEO_UPLOAD_SCOPE)
+  );
+}
+
+function getSafeTikTokStatus(value: unknown) {
+  const status = getRequiredString(value);
+
+  return status &&
+    status.length <= MAX_TIKTOK_STATUS_LENGTH &&
+    /^[A-Z0-9_]+$/.test(status)
+    ? status
+    : null;
+}
+
+function getSafeTikTokFailReason(value: unknown) {
+  const failReason = getOptionalString(value);
+
+  if (!failReason) {
+    return null;
+  }
+
+  const sanitized = failReason
+    .slice(0, MAX_TIKTOK_FAIL_REASON_LENGTH)
+    .replace(/[^a-zA-Z0-9._-]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  return sanitized || null;
 }
 
 function getSafeHttpUrl(value: unknown) {

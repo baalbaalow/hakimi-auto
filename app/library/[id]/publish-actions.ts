@@ -224,11 +224,12 @@ export async function postDraftToTikTok(
       videoMimeType,
       videoDurationSeconds,
       settings: settings.value,
-      savePublishId: async (publishId) => {
+      savePublishId: async (publishId, tiktokAccountId) => {
         const { data: trackedUpload, error: trackingError } = await supabase
           .from("uploads")
           .update({
             publish_id: publishId,
+            tiktok_account_id: tiktokAccountId,
             status: "queued",
             error_message: null,
           })

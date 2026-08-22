@@ -346,8 +346,8 @@ function PublishingSettingsForm({
                   Phase 4C Sandbox Direct Post
                 </p>
                 <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
-                  Sends the private file to TikTok with FILE_UPLOAD. Final status
-                  polling is not included yet.
+                  Sends the private file to TikTok with FILE_UPLOAD. After the
+                  transfer, use Check TikTok Status on this detail page.
                 </p>
               </div>
               <Button

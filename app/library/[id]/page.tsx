@@ -10,6 +10,7 @@ import { notFound } from "next/navigation";
 import { AppPageHeader } from "@/components/app/AppPageHeader";
 import { DraftMetadataForm } from "@/components/app/DraftMetadataForm";
 import { DraftReadinessCard } from "@/components/app/DraftReadinessCard";
+import { TikTokPublishStatus } from "@/components/app/TikTokPublishStatus";
 import { TikTokPublishingSettings } from "@/components/app/TikTokPublishingSettings";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -41,7 +42,7 @@ export default async function DraftDetailPage({ params }: DraftDetailPageProps) 
     supabase
       .from("uploads")
       .select(
-        "id, title, caption, status, created_at, updated_at, storage_path",
+        "id, title, caption, status, created_at, updated_at, storage_path, publish_id",
       )
       .eq("id", id)
       .eq("user_id", user.id)
@@ -93,6 +94,7 @@ export default async function DraftDetailPage({ params }: DraftDetailPageProps) 
     hasOwnedPath: Boolean(ownedStoragePath),
     hasSignedPreview: Boolean(signedUrl),
   });
+  const hasTikTokPublishingHistory = Boolean(upload.publish_id?.trim());
 
   return (
     <div className="space-y-6">
@@ -246,6 +248,13 @@ export default async function DraftDetailPage({ params }: DraftDetailPageProps) 
           </dl>
         </Card>
       </div>
+
+      {hasTikTokPublishingHistory ? (
+        <TikTokPublishStatus
+          uploadId={upload.id}
+          localStatus={upload.status}
+        />
+      ) : null}
 
       {isDraft && creatorInfoResult ? (
         <TikTokPublishingSettings
