@@ -18,7 +18,10 @@ import Card from "@/components/ui/Card";
 import { requireAuthenticatedUser } from "@/lib/auth";
 import { getDraftReadiness } from "@/lib/draft-readiness";
 import { isUuid } from "@/lib/identifiers";
-import { queryTikTokCreatorInfo } from "@/lib/tiktok-content-posting";
+import {
+  getStoredTikTokFailureDisplayMessage,
+  queryTikTokCreatorInfo,
+} from "@/lib/tiktok-content-posting";
 import { getTikTokAccountSummary } from "@/lib/tiktok-login";
 import { createClient } from "@/utils/supabase/server";
 
@@ -42,7 +45,7 @@ export default async function DraftDetailPage({ params }: DraftDetailPageProps) 
     supabase
       .from("uploads")
       .select(
-        "id, title, caption, status, created_at, updated_at, storage_path, publish_id",
+        "id, title, caption, status, created_at, updated_at, storage_path, publish_id, error_message",
       )
       .eq("id", id)
       .eq("user_id", user.id)
@@ -95,6 +98,12 @@ export default async function DraftDetailPage({ params }: DraftDetailPageProps) 
     hasSignedPreview: Boolean(signedUrl),
   });
   const hasTikTokPublishingHistory = Boolean(upload.publish_id?.trim());
+  const storedTikTokStatusMessage =
+    upload.status === "published"
+      ? "TikTok confirmed that this video was published."
+      : upload.status === "failed"
+        ? getStoredTikTokFailureDisplayMessage(upload.error_message)
+        : null;
 
   return (
     <div className="space-y-6">
@@ -253,6 +262,7 @@ export default async function DraftDetailPage({ params }: DraftDetailPageProps) 
         <TikTokPublishStatus
           uploadId={upload.id}
           localStatus={upload.status}
+          storedStatusMessage={storedTikTokStatusMessage}
         />
       ) : null}
 

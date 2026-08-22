@@ -18,9 +18,11 @@ const INITIAL_STATUS_STATE: CheckTikTokStatusState = {
 export function TikTokPublishStatus({
   uploadId,
   localStatus,
+  storedStatusMessage,
 }: {
   uploadId: string;
   localStatus: string;
+  storedStatusMessage: string | null;
 }) {
   const boundAction = checkTikTokStatus.bind(null, uploadId);
   const [actionState, formAction, isPending] = useActionState(
@@ -28,13 +30,14 @@ export function TikTokPublishStatus({
     INITIAL_STATUS_STATE,
   );
   const canCheck = localStatus === "queued" || localStatus === "processing";
-  const displayMessage =
-    actionState.message ?? getStoredStatusMessage(localStatus);
+  const displayMessage = actionState.message ?? storedStatusMessage;
   const displayStatus = actionState.message
     ? actionState.status
     : localStatus === "published" || localStatus === "failed"
       ? localStatus
       : "idle";
+  const statusHeading = getStatusHeading(localStatus);
+  const statusDescription = getStatusDescription(localStatus);
 
   return (
     <Card className="p-5 sm:p-6">
@@ -48,11 +51,10 @@ export function TikTokPublishStatus({
               TikTok publishing status
             </p>
             <h2 className="mt-2 text-xl font-semibold text-[var(--foreground)]">
-              Check processing progress
+              {statusHeading}
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-              Request the latest status once. Hakimi Auto does not poll TikTok
-              automatically.
+              {statusDescription}
             </p>
           </div>
         </div>
@@ -91,16 +93,28 @@ export function TikTokPublishStatus({
   );
 }
 
-function getStoredStatusMessage(localStatus: string) {
+function getStatusHeading(localStatus: string) {
   if (localStatus === "published") {
-    return "TikTok confirmed that this video was published.";
+    return "Published on TikTok";
   }
 
   if (localStatus === "failed") {
-    return "TikTok could not publish this video. The safe failure reason is stored with this upload.";
+    return "TikTok publishing failed";
   }
 
-  return null;
+  return "Check processing progress";
+}
+
+function getStatusDescription(localStatus: string) {
+  if (localStatus === "published") {
+    return "TikTok has confirmed the final published state.";
+  }
+
+  if (localStatus === "failed") {
+    return "Review the safe processing reason below before preparing another draft.";
+  }
+
+  return "Request the latest status once. Hakimi Auto does not poll TikTok automatically.";
 }
 
 function getResultClasses(status: CheckTikTokStatusState["status"]) {

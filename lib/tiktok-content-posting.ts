@@ -39,6 +39,31 @@ const MAX_TIKTOK_CAPTION_LENGTH = 2_200;
 const MAX_PUBLISH_ID_LENGTH = 64;
 const MAX_TIKTOK_STATUS_LENGTH = 64;
 const MAX_TIKTOK_FAIL_REASON_LENGTH = 120;
+const TIKTOK_PROCESSING_FAILURE_PREFIX = "TikTok processing failed: ";
+const TIKTOK_FAILURE_DISPLAY_MESSAGES: Readonly<Record<string, string>> = {
+  file_format_check_failed:
+    "TikTok could not publish this video because its file format is not supported.",
+  duration_check_failed:
+    "TikTok could not publish this video because its duration is not supported.",
+  frame_rate_check_failed:
+    "TikTok could not publish this video because its frame rate is not supported.",
+  picture_size_check_failed:
+    "TikTok could not publish this video because its dimensions are not supported.",
+  internal:
+    "TikTok could not publish this video because TikTok encountered an internal processing error.",
+  publish_cancelled:
+    "TikTok could not publish this video because the publishing request was cancelled.",
+  auth_removed:
+    "TikTok could not publish this video because the account authorization was removed.",
+  spam_risk_too_many_posts:
+    "TikTok could not publish this video because the account reached its posting limit.",
+  spam_risk_user_banned_from_posting:
+    "TikTok could not publish this video because the account is not permitted to post.",
+  spam_risk_text:
+    "TikTok could not publish this video because its caption did not pass TikTok's checks.",
+  spam_risk:
+    "TikTok could not publish this video because it did not pass TikTok's safety checks.",
+};
 const SUPPORTED_VIDEO_MIME_TYPES = new Set([
   "video/mp4",
   "video/quicktime",
@@ -102,6 +127,21 @@ export type TikTokPublishStatusResult =
       ok: false;
       message: string;
     };
+
+export function getStoredTikTokFailureDisplayMessage(value: unknown) {
+  if (
+    typeof value !== "string" ||
+    !value.startsWith(TIKTOK_PROCESSING_FAILURE_PREFIX)
+  ) {
+    return "TikTok could not publish this video.";
+  }
+
+  const failReason = getSafeTikTokFailReason(
+    value.slice(TIKTOK_PROCESSING_FAILURE_PREFIX.length),
+  );
+
+  return getTikTokFailureDisplayMessage(failReason ?? "unknown");
+}
 
 type TikTokRefreshTokenPayload = {
   data?: unknown;
@@ -566,13 +606,13 @@ export async function fetchTikTokPublishStatus(
     const updated = await updateOwnedTikTokPublishingState({
       ...updateContext,
       status: "failed",
-      errorMessage: `TikTok processing failed: ${failReason}`,
+      errorMessage: `${TIKTOK_PROCESSING_FAILURE_PREFIX}${failReason}`,
     });
 
     return updated
       ? publishStatusSuccess(
           "failed",
-          `TikTok could not publish this video: ${failReason}`,
+          getTikTokFailureDisplayMessage(failReason),
         )
       : publishStatusPersistenceError();
   }
@@ -1212,43 +1252,14 @@ async function initializeTikTokDirectPost({
   const publishId = getSafePublishId(rawPublishId);
   const uploadUrl = getSafeTikTokUploadUrl(rawUploadUrl);
 
-  if (
-    !publishId ||
-    !uploadUrl
-  ) {
-    const uploadUrlMetadata = getUrlDiagnosticMetadata(rawUploadUrl);
-    const validationDiagnostic = {
+  if (!publishId || !uploadUrl) {
+    logContentPostingError("Direct Post initialization response was incomplete", {
       status: response.status,
       code: responseCode,
-      rawPublishIdExists:
-        rawPublishId !== null && rawPublishId !== undefined,
-      rawPublishIdLength:
-        typeof rawPublishId === "string" ? rawPublishId.length : null,
-      rawUploadUrlExists:
-        rawUploadUrl !== null && rawUploadUrl !== undefined,
-      rawUploadUrlLength:
-        typeof rawUploadUrl === "string" ? rawUploadUrl.length : null,
-      uploadUrlProtocol: uploadUrlMetadata.protocol,
-      uploadUrlHostname: uploadUrlMetadata.hostname,
-      publishIdAccepted: Boolean(publishId),
-      uploadUrlAccepted: Boolean(uploadUrl),
-    };
-
-    logContentPostingError("Direct Post initialization response was incomplete", {
-      status: validationDiagnostic.status,
-      code: validationDiagnostic.code,
       log_id: getOptionalString(payload.error?.log_id),
-      raw_publish_id_exists: validationDiagnostic.rawPublishIdExists,
-      raw_publish_id_length: validationDiagnostic.rawPublishIdLength,
-      raw_upload_url_exists: validationDiagnostic.rawUploadUrlExists,
-      raw_upload_url_length: validationDiagnostic.rawUploadUrlLength,
-      upload_url_protocol: validationDiagnostic.uploadUrlProtocol,
-      upload_url_hostname: validationDiagnostic.uploadUrlHostname,
-      publish_id_accepted: validationDiagnostic.publishIdAccepted,
-      upload_url_accepted: validationDiagnostic.uploadUrlAccepted,
     });
     return directPostError(
-      `TikTok returned an incomplete upload response. Diagnostic: ${formatDirectPostValidationDiagnostic(validationDiagnostic)}`,
+      "TikTok returned an incomplete upload response. Please try again.",
     );
   }
 
@@ -1666,6 +1677,24 @@ function getSafeTikTokFailReason(value: unknown) {
   return sanitized || null;
 }
 
+function getTikTokFailureDisplayMessage(failReason: string) {
+  const knownMessage = TIKTOK_FAILURE_DISPLAY_MESSAGES[failReason];
+
+  if (knownMessage) {
+    return knownMessage;
+  }
+
+  if (failReason === "unknown") {
+    return "TikTok could not publish this video. TikTok did not provide a specific reason.";
+  }
+
+  const readableReason = failReason.replace(/[_-]+/g, " ").trim();
+
+  return readableReason
+    ? `TikTok could not publish this video. TikTok reported: ${readableReason}.`
+    : "TikTok could not publish this video.";
+}
+
 function getSafeHttpUrl(value: unknown) {
   if (typeof value !== "string" || !value.trim()) {
     return null;
@@ -1720,55 +1749,6 @@ function getSafePublishId(value: unknown) {
   }
 
   return publishId;
-}
-
-function getUrlDiagnosticMetadata(value: unknown) {
-  if (typeof value !== "string" || !value.trim()) {
-    return {
-      protocol: null,
-      hostname: null,
-    };
-  }
-
-  try {
-    const url = new URL(value);
-
-    return {
-      protocol: url.protocol || null,
-      hostname: url.hostname || null,
-    };
-  } catch {
-    return {
-      protocol: null,
-      hostname: null,
-    };
-  }
-}
-
-function formatDirectPostValidationDiagnostic(diagnostic: {
-  status: number;
-  code: string;
-  rawPublishIdExists: boolean;
-  rawPublishIdLength: number | null;
-  rawUploadUrlExists: boolean;
-  rawUploadUrlLength: number | null;
-  uploadUrlProtocol: string | null;
-  uploadUrlHostname: string | null;
-  publishIdAccepted: boolean;
-  uploadUrlAccepted: boolean;
-}) {
-  return [
-    `status=${diagnostic.status}`,
-    `code=${diagnostic.code}`,
-    `raw_publish_id_exists=${diagnostic.rawPublishIdExists}`,
-    `raw_publish_id_length=${diagnostic.rawPublishIdLength ?? "null"}`,
-    `raw_upload_url_exists=${diagnostic.rawUploadUrlExists}`,
-    `raw_upload_url_length=${diagnostic.rawUploadUrlLength ?? "null"}`,
-    `upload_url_protocol=${diagnostic.uploadUrlProtocol ?? "null"}`,
-    `upload_url_hostname=${diagnostic.uploadUrlHostname ?? "null"}`,
-    `publish_id_accepted=${diagnostic.publishIdAccepted}`,
-    `upload_url_accepted=${diagnostic.uploadUrlAccepted}`,
-  ].join(" ");
 }
 
 function getErrorName(error: unknown) {

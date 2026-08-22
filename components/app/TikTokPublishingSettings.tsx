@@ -135,6 +135,9 @@ function PublishingSettingsForm({
                   </div>
                 )}
                 <div className="min-w-0">
+                  <p className="text-xs uppercase tracking-[0.12em] text-[var(--muted)]">
+                    TikTok account used for this post
+                  </p>
                   <p className="truncate text-base font-semibold text-[var(--foreground)]">
                     {creatorInfo.creatorNickname}
                   </p>
