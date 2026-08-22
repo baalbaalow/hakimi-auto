@@ -718,26 +718,38 @@ async function initializeTikTokDirectPost({
     !uploadUrl
   ) {
     const uploadUrlMetadata = getUrlDiagnosticMetadata(rawUploadUrl);
-
-    logContentPostingError("Direct Post initialization response was incomplete", {
+    const validationDiagnostic = {
       status: response.status,
       code: responseCode,
-      log_id: getOptionalString(payload.error?.log_id),
-      raw_publish_id_exists:
+      rawPublishIdExists:
         rawPublishId !== null && rawPublishId !== undefined,
-      raw_publish_id_length:
+      rawPublishIdLength:
         typeof rawPublishId === "string" ? rawPublishId.length : null,
-      raw_upload_url_exists:
+      rawUploadUrlExists:
         rawUploadUrl !== null && rawUploadUrl !== undefined,
-      raw_upload_url_length:
+      rawUploadUrlLength:
         typeof rawUploadUrl === "string" ? rawUploadUrl.length : null,
-      upload_url_protocol: uploadUrlMetadata.protocol,
-      upload_url_hostname: uploadUrlMetadata.hostname,
-      publish_id_accepted: Boolean(publishId),
-      upload_url_accepted: Boolean(uploadUrl),
+      uploadUrlProtocol: uploadUrlMetadata.protocol,
+      uploadUrlHostname: uploadUrlMetadata.hostname,
+      publishIdAccepted: Boolean(publishId),
+      uploadUrlAccepted: Boolean(uploadUrl),
+    };
+
+    logContentPostingError("Direct Post initialization response was incomplete", {
+      status: validationDiagnostic.status,
+      code: validationDiagnostic.code,
+      log_id: getOptionalString(payload.error?.log_id),
+      raw_publish_id_exists: validationDiagnostic.rawPublishIdExists,
+      raw_publish_id_length: validationDiagnostic.rawPublishIdLength,
+      raw_upload_url_exists: validationDiagnostic.rawUploadUrlExists,
+      raw_upload_url_length: validationDiagnostic.rawUploadUrlLength,
+      upload_url_protocol: validationDiagnostic.uploadUrlProtocol,
+      upload_url_hostname: validationDiagnostic.uploadUrlHostname,
+      publish_id_accepted: validationDiagnostic.publishIdAccepted,
+      upload_url_accepted: validationDiagnostic.uploadUrlAccepted,
     });
     return directPostError(
-      "TikTok returned an incomplete upload response. Please try again.",
+      `TikTok returned an incomplete upload response. Diagnostic: ${formatDirectPostValidationDiagnostic(validationDiagnostic)}`,
     );
   }
 
@@ -1142,6 +1154,32 @@ function getUrlDiagnosticMetadata(value: unknown) {
       hostname: null,
     };
   }
+}
+
+function formatDirectPostValidationDiagnostic(diagnostic: {
+  status: number;
+  code: string;
+  rawPublishIdExists: boolean;
+  rawPublishIdLength: number | null;
+  rawUploadUrlExists: boolean;
+  rawUploadUrlLength: number | null;
+  uploadUrlProtocol: string | null;
+  uploadUrlHostname: string | null;
+  publishIdAccepted: boolean;
+  uploadUrlAccepted: boolean;
+}) {
+  return [
+    `status=${diagnostic.status}`,
+    `code=${diagnostic.code}`,
+    `raw_publish_id_exists=${diagnostic.rawPublishIdExists}`,
+    `raw_publish_id_length=${diagnostic.rawPublishIdLength ?? "null"}`,
+    `raw_upload_url_exists=${diagnostic.rawUploadUrlExists}`,
+    `raw_upload_url_length=${diagnostic.rawUploadUrlLength ?? "null"}`,
+    `upload_url_protocol=${diagnostic.uploadUrlProtocol ?? "null"}`,
+    `upload_url_hostname=${diagnostic.uploadUrlHostname ?? "null"}`,
+    `publish_id_accepted=${diagnostic.publishIdAccepted}`,
+    `upload_url_accepted=${diagnostic.uploadUrlAccepted}`,
+  ].join(" ");
 }
 
 function getErrorName(error: unknown) {
